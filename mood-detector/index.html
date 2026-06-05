@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bowie's Mood Predictor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Fredoka One', cursive; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-color: #fce4ec; }
+        .app-container { background: white; padding: 30px; border-radius: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 450px; text-align: center; border: 5px solid #f48fb1; }
+        textarea { width: 100%; height: 120px; padding: 15px; margin-bottom: 20px; border: 3px solid #f8bbd0; border-radius: 20px; font-size: 1.1rem; resize: none; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background-color: #ec407a; color: white; border: none; border-radius: 20px; font-size: 1.3rem; cursor: pointer; transition: 0.2s; }
+        button:hover { background-color: #d81b60; }
+        #result-area { margin-top: 25px; }
+        svg { width: 140px; height: 140px; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h1>Bowie's Mood Predictor</h1>
+    <textarea id="userInput" placeholder="Tell me about your day..."></textarea>
+    <button onclick="analyzeText()">Analyze My Mood</button>
+    <div id="result-area"></div>
+</div>
+
+<script>
+    const moodLibrary = {
+        happy: { words: ['happy', 'fun', 'play', 'smile', 'joy', 'good', 'glad', 'great', 'awesome', 'cheery', 'delighted', 'wonderful', 'joyful', 'fantastic', 'super', 'jolly', 'bright', 'cheerful'], svg: '<circle cx="50" cy="50" r="40" fill="#FFD700"/><circle cx="35" cy="40" r="6"/><circle cx="65" cy="40" r="6"/><path d="M30 60 Q50 80 70 60" stroke="black" fill="transparent" stroke-width="6"/>', text: "You sound so happy! That is wonderful!" },
+        sad: { words: ['sad', 'cry', 'lonely', 'miss', 'bad', 'upset', 'tear', 'unhappy', 'gloomy', 'blue', 'awful', 'terrible', 'down', 'heartbroken', 'depressing', 'miserable'], svg: '<circle cx="50" cy="50" r="40" fill="#64B5F6"/><circle cx="35" cy="40" r="6"/><circle cx="65" cy="40" r="6"/><path d="M30 70 Q50 50 70 70" stroke="black" fill="transparent" stroke-width="6"/>', text: "It is okay to feel sad. I am here for you!" },
+        excited: { words: ['excited', 'yay', 'wow', 'party', 'cool', 'thrilled', 'amazing', 'super', 'hyper', 'incredible', 'insane', 'wild', 'energetic', 'electric', 'bubbly'], svg: '<circle cx="50" cy="50" r="40" fill="#FF9800"/><circle cx="35" cy="40" r="8"/><circle cx="65" cy="40" r="8"/><path d="M30 60 L50 75 L70 60" stroke="black" fill="transparent" stroke-width="6"/>', text: "Wow! You have so much energy!" },
+        tired: { words: ['tired', 'sleepy', 'nap', 'bed', 'rest', 'yawn', 'exhausted', 'weary', 'drowsy', 'lazy', 'bored', 'dull', 'slow', 'worn'], svg: '<circle cx="50" cy="50" r="40" fill="#D1C4E9"/><line x1="35" y1="40" x2="45" y2="35"/><line x1="55" y1="35" x2="65" y2="40"/><path d="M30 70 Q50 60 70 70" stroke="black" fill="transparent" stroke-width="6"/>', text: "Sounds like you need a nice long nap!" },
+        scared: { words: ['scared', 'afraid', 'dark', 'help', 'frightened', 'nervous', 'spooky', 'terrified', 'fearful', 'creepy', 'scary', 'petrified', 'jumpy'], svg: '<circle cx="50" cy="50" r="40" fill="#CFD8DC"/><circle cx="40" cy="40" r="8"/><circle cx="60" cy="40" r="8"/><ellipse cx="50" cy="75" rx="8" ry="10" fill="black"/>', text: "It is okay to be scared. You are safe!" },
+        silly: { words: ['silly', 'goofy', 'funny', 'haha', 'wiggle', 'dorky', 'clown', 'weird', 'laugh', 'giggle', 'absurd', 'wacky', 'zany'], svg: '<circle cx="50" cy="50" r="40" fill="#F48FB1"/><circle cx="35" cy="40" r="6"/><circle cx="65" cy="40" r="6"/><path d="M30 70 Q50 90 70 70" stroke="black" fill="transparent" stroke-width="6"/>', text: "You are being so silly! I love it!" },
+        angry: { words: ['angry', 'mad', 'grrr', 'mean', 'furious', 'frustrated', 'annoyed', 'irritated', 'grumpy', 'cross', 'fuming'], svg: '<circle cx="50" cy="50" r="40" fill="#EF9A9A"/><path d="M30 35 L45 45 M70 35 L55 45" stroke="black" fill="transparent" stroke-width="6"/><path d="M30 70 Q50 60 70 70" stroke="black" fill="transparent" stroke-width="6"/>', text: "It is okay to be mad. Deep breaths!" },
+        adventurous: { words: ['adventurous', 'explore', 'discover', 'journey', 'outside', 'brave', 'quest', 'new', 'climb'], svg: '<circle cx="50" cy="50" r="40" fill="#81C784"/><path d="M40 30 L50 20 L60 30 M40 70 L50 80 L60 70" stroke="black" fill="transparent" stroke-width="6"/>', text: "You are on an adventure! How exciting!" },
+        peaceful: { words: ['peaceful', 'quiet', 'calm', 'relax', 'still', 'zen', 'gentle', 'soft', 'breeze', 'silent'], svg: '<circle cx="50" cy="50" r="40" fill="#B3E5FC"/><line x1="35" y1="45" x2="65" y2="45" stroke="black" stroke-width="6"/>', text: "Everything is nice and peaceful." },
+        grateful: { words: ['thank', 'thanks', 'love', 'kind', 'appreciate', 'lucky', 'blessed', 'gift', 'heart'], svg: '<circle cx="50" cy="50" r="40" fill="#FF8A80"/><path d="M35 35 Q30 25 40 25 Q50 25 50 35 Q50 25 60 25 Q70 25 65 35 L50 60 Z" fill="red"/>', text: "It is so nice to be grateful!" },
+        proud: { words: ['proud', 'win', 'finished', 'did it', 'success', 'triumph', 'smart', 'clever'], svg: '<circle cx="50" cy="50" r="40" fill="#FFF176"/><path d="M30 40 L50 30 L70 40" stroke="black" fill="transparent" stroke-width="6"/>', text: "You should be very proud of yourself!" },
+        confused: { words: ['confused', 'puzzled', 'what', 'unsure', 'wondering', 'mystery', 'strange'], svg: '<circle cx="50" cy="50" r="40" fill="#FFF9C4"/><circle cx="35" cy="40" r="6"/><circle cx="65" cy="40" r="6"/><path d="M40 70 Q50 60 60 70" stroke="black" fill="transparent" stroke-width="6"/>', text: "It is okay to be a little puzzled!" },
+        hungry: { words: ['hungry', 'eat', 'snack', 'food', 'tummy', 'starving', 'feed', 'yummy', 'dinner'], svg: '<circle cx="50" cy="50" r="40" fill="#FFCC80"/><path d="M30 75 Q50 60 70 75" stroke="black" fill="transparent" stroke-width="6"/>', text: "Time for a yummy snack!" },
+        creative: { words: ['draw', 'paint', 'art', 'make', 'create', 'build', 'imagine', 'design', 'write'], svg: '<circle cx="50" cy="50" r="40" fill="#81D4FA"/><path d="M30 70 L40 30 L60 30 L70 70 Z" fill="orange"/>', text: "Your imagination is amazing!" },
+        hopeful: { words: ['hope', 'wish', 'better', 'future', 'tomorrow', 'dream'], svg: '<circle cx="50" cy="50" r="40" fill="#FFF59D"/><path d="M50 20 L50 80 M20 50 L80 50" stroke="green" stroke-width="6"/>', text: "Holding onto hope is very strong!" },
+        determined: { words: ['determined', 'goal', 'finish', 'start', 'power', 'hard'], svg: '<circle cx="50" cy="50" r="40" fill="#9FA8DA"/><rect x="30" y="30" width="40" height="40" fill="black"/>', text: "You are working hard! Keep going!" },
+        curious: { words: ['curious', 'ask', 'learn', 'explore', 'search', 'find', 'think'], svg: '<circle cx="50" cy="50" r="40" fill="#B39DDB"/><circle cx="40" cy="40" r="5"/><circle cx="60" cy="40" r="5"/>', text: "Asking questions is how you grow!" },
+        surprised: { words: ['surprise', 'wow', 'gasp', 'shocked', 'unexpected', 'amazed', 'suddenly'], svg: '<circle cx="50" cy="50" r="40" fill="#CE93D8"/><circle cx="40" cy="35" r="8"/><circle cx="60" cy="35" r="8"/>', text: "Oh! What a big surprise!" },
+        grumpy: { words: ['grumpy', 'cranky', 'sour', 'frown', 'moody'], svg: '<circle cx="50" cy="50" r="40" fill="#B0BEC5"/><line x1="30" y1="35" x2="70" y2="35" stroke="black" stroke-width="6"/>', text: "Sounds like you are a little grumpy." },
+        energetic: { words: ['energetic', 'run', 'jump', 'fast', 'active', 'quick', 'zoom'], svg: '<circle cx="50" cy="50" r="40" fill="#FF8A65"/><circle cx="40" cy="35" r="5"/><circle cx="60" cy="35" r="5"/>', text: "You have so much energy to zoom around!" }
+    };
+
+    function analyzeText() {
+        const text = document.getElementById("userInput").value.toLowerCase();
+        let bestMood = null;
+        let maxScore = 0;
+
+        const wordsInInput = text.split(/\W+/);
+        
+        Object.keys(moodLibrary).forEach(mood => {
+            let score = 0;
+            moodLibrary[mood].words.forEach(keyword => {
+                if (wordsInInput.includes(keyword)) score += 3;
+                if (text.includes(keyword)) score += 1;
+            });
+            if (score > maxScore) {
+                maxScore = score;
+                bestMood = mood;
+            }
+        });
+
+        const display = document.getElementById("result-area");
+        if (bestMood) {
+            const result = moodLibrary[bestMood];
+            display.innerHTML = `<svg viewBox="0 0 100 100">${result.svg}</svg><p>${result.text}</p>`;
+        } else {
+            display.innerHTML = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="#E0E0E0"/><text x="50" y="65" font-size="50" text-anchor="middle">?</text></svg><p>I am not sure, but I am listening! Tell me more?</p>`;
+        }
+    }
+</script>
+</body>
+</html>

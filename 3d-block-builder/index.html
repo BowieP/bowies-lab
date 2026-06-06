@@ -13,7 +13,7 @@
     <style>
         /* This makes the canvas fill the whole screen, which is great for mobile! */
         body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; }
-        #container { width: 100vw; height: 100vh; }
+        #container { width: 100vw; height: 100vh; touch-action: none; }
         
         /*  Make the new modal scrollbar pretty (for browsers that support it)  */
         #tool-grid::-webkit-scrollbar { width: 8px; }
@@ -33,7 +33,7 @@
             </button>
         </div>
 
-        <!--  NEW! Full-Screen Tool Modal  -->
+        <!-- NEW! Full-Screen Tool Modal  -->
         <div id="tool-modal" class="hidden fixed inset-0 bg-gray-900/70 z-40 flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl p-6 relative">
                 <!-- Close Button -->
@@ -152,6 +152,9 @@
         let lastGenerationTime = 0; //  NEW! Timer for the builder!
         
         // --- INSTANCING VARIABLES ---
+        let isMouseDown = false;
+        let mouseDownPos = new THREE.Vector2();
+
         let instancedMeshes = {}; // This will hold our super-fast block meshes
         let dummy = new THREE.Object3D(); // A helper object for setting positions
         
@@ -261,7 +264,7 @@
         const blockMaterials = {
             'grass': grassMaterials, 'dirt': deepDirtMaterial, 'log': logMaterial,
             'stone': stoneMaterial, 'water': waterMaterial, 'leaf': leafMaterial,
-            'sand': sandMaterial, 'glass': glassMaterial, 'brick': brickMaterial // 🤩 NEW!
+            'sand': sandMaterial, 'glass': glassMaterial, 'brick': brickMaterial // NEW!
         };
         
         const SUN_POSITION = new THREE.Vector3(30, 60, 30); 
@@ -316,7 +319,7 @@
                         if (y === surfaceY && y > WATER_LEVEL) {
                             addBlockData('grass', worldX, y, worldZ); 
                         } else if (y > surfaceY - 4) {
-                            // 🤩 NEW! Add sand beaches!
+                            // NEW! Add sand beaches!
                             if (surfaceY <= WATER_LEVEL + 1 && y <= WATER_LEVEL + 1) {
                                 addBlockData('sand', worldX, y, worldZ);
                             } else {
@@ -360,7 +363,7 @@
             chunks.set(chunkKey, chunk); 
         }
 
-        // --- 🤩 CHUNK BRAIN! 🧠✨️ ---
+        // --- CHUNK BRAIN! ---
         function updateChunks() {
             const { x: currentChunkX, z: currentChunkZ } = getCameraChunkKey();
             const visibleChunksSet = new Set();
@@ -414,7 +417,7 @@
         }
         
         
-        // --- 🤩 RENDER FUNCTION! 🚀 ---
+        // --- RENDER FUNCTION! ---
         function updateInstancedMeshes() {
             for (const type in instancedMeshes) {
                 instancedMeshes[type].count = 0;
@@ -464,8 +467,8 @@
         
         // --- WATER FLOW LOGIC (Now with data!) ---
         function spreadWater(originX, originY, originZ, flowDepth = 0) {
-            // 🤩🌊 MORE WATER FLOW!
-            if (flowDepth > 5) return; // 💧 Flow further! (Was 3)
+            // MORE WATER FLOW!
+            if (flowDepth > 5) return; // Flow further! (Was 3)
             if (isPlacingWater) return;
 
             const downY = originY - 1;
@@ -553,7 +556,7 @@
                 animalGroup.add(earRight);
             }
 
-            // Pig Snout 🐷
+            // Pig Snout
             if (type === 'pig') {
                 const snoutGeo = new THREE.BoxGeometry(0.2, 0.15, 0.1);
                 const snout = new THREE.Mesh(snoutGeo, pigBodyMaterial); 
@@ -561,7 +564,7 @@
                 animalGroup.add(snout);
             }
             
-            // Cow Spots & Horns 🐄
+            // Cow Spots & Horns
             if (type === 'cow') {
                 for (let i = 0; i < 5; i++) {
                     const spotGeo = new THREE.BoxGeometry(Math.random()*0.3+0.1, Math.random()*0.3+0.1, Math.random()*0.3+0.1);
@@ -578,7 +581,7 @@
                 animalGroup.add(horn2);
             }
             
-            // Chicken Wattle & Beak 🐔
+            // Chicken Wattle & Beak
             if (type === 'chicken') {
                 const wattleGeo = new THREE.BoxGeometry(0.1, 0.1, 0.05);
                 const wattle = new THREE.Mesh(wattleGeo, chickenDetailMaterial);
@@ -698,12 +701,27 @@
 
         // --- INTERACTION HANDLER (Now uses InstancedMesh!) ---
         function handleCreativeInteraction(event) {
+            // Prevent interaction if clicking on UI elements
+            if (event.target.closest('#toolbox') || event.target.closest('#tool-modal')) return;
+
+            const isTouch = event.pointerType === 'touch' || event.type.startsWith('touch');
+            // Map controls for PC: Left Click (0) = Break, Right Click (2) = Place
+            let activeTool = currentTool;
+            
+            if (!isTouch) {
+                if (event.button === 0) {
+                    activeTool = 'break';
+                } else if (event.button === 2) {
+                    if (currentTool === 'break') return; // Cannot "place" a break tool
+                    activeTool = currentTool;
+                } else return; // Ignore middle clicks
+            }
+
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
             
             const intersects = raycaster.intersectObjects(Object.values(instancedMeshes)); 
-
             if (intersects.length > 0) {
                 const intersect = intersects[0];
                 const instanceId = intersect.instanceId; 
@@ -718,15 +736,15 @@
                 
                 if (!blockData) return; 
                 
-                if (currentTool === 'break') {
+                if (activeTool === 'break') {
                     if (blockData.y <= BEDROCK_LEVEL) return;
                     removeBlock(blockData, key); 
-                // 🤩 NEW ANIMAL CHECK!
-                } else if (currentTool === 'pig' || currentTool === 'sheep' || currentTool === 'cow' || currentTool === 'chicken') {
+                // NEW ANIMAL CHECK!
+                } else if (['pig', 'sheep', 'cow', 'chicken'].includes(activeTool)) {
                     const normal = intersect.face.normal;
                     const spawnX = Math.round(pos.x + normal.x);
                     const spawnZ = Math.round(pos.z + normal.z);
-                    createAnimal(currentTool, spawnX, spawnZ);
+                    createAnimal(activeTool, spawnX, spawnZ);
                 } else {
                     const normal = intersect.face.normal;
                     const newX = Math.round(pos.x + normal.x);
@@ -735,7 +753,7 @@
                     
                     if (newY <= BEDROCK_LEVEL || newY > BUILD_HEIGHT) return; 
                     
-                    createNewBlock(currentTool, newX, newY, newZ); 
+                    createNewBlock(activeTool, newX, newY, newZ); 
                 }
             }
         }
@@ -770,6 +788,9 @@
                 const mesh = new THREE.InstancedMesh(instancedGeometry, material, MAX_BLOCKS_PER_TYPE);
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
+                mesh.frustumCulled = false;
+                // Set a large bounding sphere so raycasting works correctly throughout the infinite world
+                mesh.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1000);
                 instancedMeshes[type] = mesh;
                 scene.add(mesh);
             }
@@ -777,7 +798,10 @@
             // 5. Controls
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true; 
-            controls.dampingFactor = 0.05;
+            controls.dampingFactor = 0.15;
+            controls.zoomSpeed = 3.5;     // Much stronger zoom to prevent "weakness" or timing out
+            controls.minDistance = 2;     // Prevent zooming into the "nothingness"
+            controls.maxDistance = 150;   // Keep the world in view
             controls.target.set(0, 0, 0); 
             controls.update();
             
@@ -809,16 +833,20 @@
             updateChunks();
 
             // 8. Add Interaction Listener
-            renderer.domElement.addEventListener('mousedown', handleCreativeInteraction, false);
-            renderer.domElement.addEventListener('touchstart', (e) => {
-                if (e.target.closest('#toolbox') || e.target.closest('#tool-modal')) return;
-                e.preventDefault(); 
-                e.clientX = e.touches[0].clientX;
-                e.clientY = e.touches[0].clientY;
-                handleCreativeInteraction(e);
+            renderer.domElement.addEventListener('pointerdown', (e) => {
+                isMouseDown = true;
+                mouseDownPos.set(e.clientX, e.clientY);
+            }, false);
+
+            renderer.domElement.addEventListener('pointerup', (e) => {
+                if (!isMouseDown) return;
+                isMouseDown = false;
+                // Only interact if the mouse didn't move much (prevents interaction while rotating camera)
+                const moveDist = Math.hypot(e.clientX - mouseDownPos.x, e.clientY - mouseDownPos.y);
+                if (moveDist < 15) handleCreativeInteraction(e);
             }, false);
             
-            // 9. 🤩 Add NEW Toolbox Listeners
+            // 9. Add NEW Toolbox Listeners
             const menuButton = document.getElementById('tool-menu-button');
             const modal = document.getElementById('tool-modal');
             const closeButton = document.getElementById('close-modal-button');
@@ -839,9 +867,12 @@
 
             // 10. Handle resizing of the window
             window.addEventListener('resize', onWindowResize, false);
+
+            // 11. Prevent context menu so Right Click works for placing!
+            window.addEventListener('contextmenu', (e) => e.preventDefault());
         }
 
-        // --- 🤩 TOOLBOX LOGIC (Updated for new modal) ---
+        // --- TOOLBOX LOGIC (Updated for new modal) ---
         function changeTool(toolName) {
             currentTool = toolName;
             const iconDisplay = document.getElementById('current-tool-icon');

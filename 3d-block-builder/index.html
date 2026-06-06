@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bowie's 3D Block Adventure</title>
+    <!-- We are loading Three.js for 3D graphics and Tailwind for responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!--  We need this magic math library to make infinite random worlds!  -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
+    <style>
+        /* This makes the canvas fill the whole screen, which is great for mobile! */
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; }
+        #container { width: 100vw; height: 100vh; }
+        
+        /*  Make the new modal scrollbar pretty (for browsers that support it)  */
+        #tool-grid::-webkit-scrollbar { width: 8px; }
+        #tool-grid::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        #tool-grid::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+        #tool-grid::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <div id="container" class="relative">
+        
+        <!-- Toolbox UI -->
+        <div id="toolbox" class="absolute top-4 left-4 z-20">
+            <button id="tool-menu-button" class="p-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl shadow-lg focus:outline-none transition transform hover:scale-105 flex items-center space-x-2">
+                <span id="current-tool-icon" class="text-xl">🔨</span>
+                <span id="current-tool-display" class="font-bold">Break</span>
+            </button>
+        </div>
+
+        <!--  NEW! Full-Screen Tool Modal  -->
+        <div id="tool-modal" class="hidden fixed inset-0 bg-gray-900/70 z-40 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl p-6 relative">
+                <!-- Close Button -->
+                <button id="close-modal-button" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl font-bold transition transform hover:scale-110">
+                    &times;
+                </button>
+                <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Choose Your Tool</h2>
+                
+                <!-- Scrollable Grid for all the tools! -->
+                <div id="tool-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 overflow-y-auto max-h-[70vh] p-2">
+                    
+                    <!-- --- TOOLS --- -->
+                    <button data-tool="break" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-indigo-100 rounded-xl shadow-md transition transform hover:scale-105">
+                        <span class="text-5xl">🔨</span>
+                        <span class="mt-2 font-semibold text-gray-700">Break Block</span>
+                    </button>
+                    
+                    <!-- --- BLOCKS (With SVG Icons!) --- -->
+                    <button data-tool="grass" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-green-100 rounded-xl shadow-md transition transform hover:scale-105">
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#4CAF50"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#388E3C"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#558B2F"/></svg>
+                        <span class="mt-2 font-semibold text-gray-700">Grass Block</span>
+                    </button>
+                    <button data-tool="dirt" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-amber-100 rounded-xl shadow-md transition transform hover:scale-105">
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#8D6E63"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#6D4C41"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#795548"/></svg>
+                        <span class="mt-2 font-semibold text-gray-700">Dirt Block</span>
+                    </button>
+                    <button data-tool="stone" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-gray-200 rounded-xl shadow-md transition transform hover:scale-105">
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#757575"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#616161"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#9E9E9E"/></svg>
+                        <span class="mt-2 font-semibold text-gray-700">Stone Block</span>
+                    </button>
+                    <button data-tool="log" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-amber-100 rounded-xl shadow-md transition transform hover:scale-105">
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#6D4C41"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#4E342E"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#5D4037"/></svg>
+                        <span class="mt-2 font-semibold text-gray-700">Log Block</span>
+                    </button>
+                    <button data-tool="leaf" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-green-100 rounded-xl shadow-md transition transform hover:scale-105">
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#388E3C"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#2E7D32"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#4CAF50"/></svg>
+                        <span class="mt-2 font-semibold text-gray-700">Leaf Block 🌳</span>
+                    </button>
+                    <button data-tool="water" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-blue-100 rounded-xl shadow-md transition transform hover:scale-105">
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#2196F3"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#03A9F4"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#1976D2"/></svg>
+                        <span class="mt-2 font-semibold text-gray-700">Water Block 💧</span>
+                    </button>
+                    <button data-tool="sand" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-yellow-100 rounded-xl shadow-md transition transform hover:scale-105">
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#F4E1A4"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#D2B48C"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#E2C79A"/></svg>
+                        <span class="mt-2 font-semibold text-gray-700">Sand Block</span>
+                    </button>
+                    <button data-tool="glass" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-cyan-100 rounded-xl shadow-md transition transform hover:scale-105">
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#E0F7FA" fill-opacity="0.8"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#B2EBF2" fill-opacity="0.8"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#B2EBF2" fill-opacity="0.8"/></svg>
+                        <span class="mt-2 font-semibold text-gray-700">Glass Block</span>
+                    </button>
+                    <button data-tool="brick" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-red-100 rounded-xl shadow-md transition transform hover:scale-105">
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#B71C1C"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#8E24AA"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#D32F2F"/></svg>
+                        <span class="mt-2 font-semibold text-gray-700">Brick Block 🧱</span>
+                    </button>
+                    
+                    <!-- --- ANIMALS --- -->
+                    <button data-tool="pig" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-pink-100 rounded-xl shadow-md transition transform hover:scale-105">
+                        <span class="text-5xl">🐷</span>
+                        <span class="mt-2 font-semibold text-gray-700">Spawn Pig</span>
+                    </button>
+                    <button data-tool="sheep" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-gray-200 rounded-xl shadow-md transition transform hover:scale-105">
+                        <span class="text-5xl">🐑</span>
+                        <span class="mt-2 font-semibold text-gray-700">Spawn Sheep</span>
+                    </button>
+                    <button data-tool="cow" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-gray-200 rounded-xl shadow-md transition transform hover:scale-105">
+                        <span class="text-5xl">🐄</span>
+                        <span class="mt-2 font-semibold text-gray-700">Spawn Cow</span>
+                    </button>
+                    <button data-tool="chicken" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-yellow-100 rounded-xl shadow-md transition transform hover:scale-105">
+                        <span class="text-5xl">🐔</span>
+                        <span class="mt-2 font-semibold text-gray-700">Spawn Chicken</span>
+                    </button>
+                    
+                </div>
+            </div>
+        </div>
+
+        <!-- Position Display Box -->
+        <div id="position-display" class="absolute top-4 right-4 p-2 bg-pink-300/80 text-black rounded-xl shadow-lg text-sm font-bold z-10 sm:text-base">
+            X: 0.0 | Y: 0.0 | Z: 0.0
+        </div>
+        
+        <!-- Chunk Counter -->
+        <div id="chunk-counter" class="absolute bottom-4 right-4 p-2 bg-white/70 rounded-xl shadow-lg text-sm font-sans z-10 sm:text-base font-bold">
+            Chunks Visible: 0
+        </div>
+    </div>
+
+    <script>
+        // --- CORE GAME CONSTANTS ---
+        const CHUNK_SIZE = 10;      //  Each chunk is 10x10 blocks
+        const RENDER_DISTANCE = 3;  //  How many chunks to see in every direction
+        const WATER_LEVEL = 0;      //  y=0 is our water level
+        const BUILD_HEIGHT = 20;    //  How high you can build
+        const MIN_Y = -25;          //  Our new SUPER DEEP world bottom!
+        const BEDROCK_LEVEL = -20;  //  Player can't break blocks at or below y=-20!
+        
+        // --- SMOOTHNESS CONSTANTS ---
+        const CHECK_CHUNKS_INTERVAL = 100; //  Check for chunks every 100ms
+        const GENERATE_CHUNK_INTERVAL = 50; //  We build one chunk every 50ms!
+        
+        // --- INSTANCING! ---
+        const MAX_BLOCKS_PER_TYPE = 250000; // 250000 Blocks
+        
+        // --- GAME STATE ---
+        let scene, camera, renderer, directionalLight, controls; 
+        let blockMap = new Map(); // Store block *data* by position string "x,y,z"
+        let animalList = []; // List to track moving animals
+        
+        let chunks = new Map(); //  This holds all our world chunks
+        let noise; //  This will be our magic world builder!
+        
+        // --- SMOOTHNESS VARIABLES ---
+        let lastChunkCheckTime = 0; //  For the chunk checking brain
+        let generationQueue = []; //  NEW! Our "To-Do List" for the builder! 📝
+        let lastGenerationTime = 0; //  NEW! Timer for the builder!
+        
+        // --- INSTANCING VARIABLES ---
+        let instancedMeshes = {}; // This will hold our super-fast block meshes
+        let dummy = new THREE.Object3D(); // A helper object for setting positions
+        
+        let currentTool = 'break'; 
+        let isPlacingWater = false; 
+        
+        // --- INTERACTION MAGIC (Raycasting) ---
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+
+        // --- TEXTURE FUNCTION & MATERIAL DEFINITIONS ---
+        
+        const ROUGHNESS = 0.8;
+        const METALNESS = 0.05;
+        const geometry = new THREE.BoxGeometry(1, 1, 1); // We still need this for the *shape*
+
+        function generateBlockTexture(colorHex, detailHex, textureName) {
+            const size = 16; 
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const context = canvas.getContext('2d');
+            const mainColor = '#' + new THREE.Color(colorHex).getHexString();
+            const detailColor = '#' + new THREE.Color(detailHex).getHexString();
+            for (let x = 0; x < size; x++) {
+                for (let y = 0; y < size; y++) {
+                    context.fillStyle = (Math.random() < 0.7) ? mainColor : detailColor;
+                    context.fillRect(x, y, 1, 1);
+                }
+            }
+            if (textureName === 'grass') {
+                context.fillStyle = '#AEEA00'; for (let i = 0; i < 5; i++) {
+                    context.fillRect(Math.floor(Math.random() * size), Math.floor(Math.random() * size), 1, 1);
+                }
+            } else if (textureName === 'water') {
+                context.fillStyle = '#FFFFFF'; for (let i = 0; i < 10; i++) {
+                    context.fillRect(Math.floor(Math.random() * size), Math.floor(Math.random() * size), 1, 1);
+                }
+            } else if (textureName === 'brick') { //  NEW BRICK PATTERN!
+                context.fillStyle = '#7F0000'; // Mortar
+                context.fillRect(0, 0, size, size);
+                context.fillStyle = '#B71C1C'; // Brick color
+                for (let y = 0; y < size; y += 8) {
+                    for (let x = (y % 16 === 0) ? 0 : -4; x < size; x += 10) {
+                        context.fillRect(x, y, 8, 6);
+                    }
+                }
+            }
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.magFilter = THREE.NearestFilter;
+            texture.minFilter = THREE.NearestFilter;
+            texture.needsUpdate = true;
+            return texture;
+        }
+        
+        const createStandardMaterial = (map, color=0xFFFFFF) => new THREE.MeshStandardMaterial({
+            map: map, color: color, roughness: ROUGHNESS, metalness: METALNESS 
+        });
+
+        // --- Material Definitions ---
+        const grassTexture = generateBlockTexture(0x4CAF50, 0x388E3C, 'grass'); 
+        const dirtTexture = generateBlockTexture(0x8D6E63, 0x6D4C41, 'dirt');   
+        const logTexture = generateBlockTexture(0x6D4C41, 0x4E342E, 'log');
+        const stoneTexture = generateBlockTexture(0x757575, 0x616161, 'stone');
+        const waterTexture = generateBlockTexture(0x03A9F4, 0x29B6F6, 'water');
+        const leafTexture = generateBlockTexture(0x388E3C, 0x2E7D32, 'leaf');
+        //  NEW BLOCK TEXTURES!
+        const sandTexture = generateBlockTexture(0xF4E1A4, 0xD2B48C, 'sand');
+        const glassTexture = generateBlockTexture(0xE0F7FA, 0xFFFFFF, 'glass');
+        const brickTexture = generateBlockTexture(0xB71C1C, 0x7F0000, 'brick');
+        
+        const deepDirtMaterial = createStandardMaterial(dirtTexture);
+        const logMaterial = createStandardMaterial(logTexture);
+        const leafMaterial = createStandardMaterial(leafTexture);
+        const stoneMaterial = createStandardMaterial(stoneTexture);
+        const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFF00 }); 
+        //  NEW BLOCK MATERIALS!
+        const sandMaterial = createStandardMaterial(sandTexture);
+        const glassMaterial = new THREE.MeshStandardMaterial({ 
+            map: glassTexture, color: 0xE0F7FA, transparent: true, 
+            opacity: 0.6, roughness: 0.1, metalness: 0.2
+        });
+        const brickMaterial = createStandardMaterial(brickTexture);
+        
+        // Animal Materials
+        const sheepBodyMaterial = createStandardMaterial(null, 0xFFFFFF); // White wool
+        const sheepFaceMaterial = createStandardMaterial(null, 0x5C4033); // Brown face
+        const pigBodyMaterial = createStandardMaterial(null, 0xF48FB1); // Pink pig
+        //  NEW ANIMAL MATERIALS!
+        const cowBodyMaterial = createStandardMaterial(null, 0xFFFFFF); // White
+        const cowSpotMaterial = createStandardMaterial(null, 0x333333); // Black
+        const chickenBodyMaterial = createStandardMaterial(null, 0xFFFFFF); // White
+        const chickenDetailMaterial = createStandardMaterial(null, 0xFF0000); // Red (wattle)
+        const beakMaterial = createStandardMaterial(null, 0xFFA500); // Orange (beak/legs)
+        
+        const grassMaterials = [
+            createStandardMaterial(dirtTexture), createStandardMaterial(dirtTexture),  
+            createStandardMaterial(grassTexture), // Top side (y+)
+            createStandardMaterial(dirtTexture), createStandardMaterial(dirtTexture), createStandardMaterial(dirtTexture)   
+        ];
+        
+        const waterMaterial = new THREE.MeshStandardMaterial({ 
+            map: waterTexture, color: 0x2196F3, transparent: true, 
+            opacity: 0.8, roughness: 0.1, metalness: 0.2
+        });
+
+        const blockMaterials = {
+            'grass': grassMaterials, 'dirt': deepDirtMaterial, 'log': logMaterial,
+            'stone': stoneMaterial, 'water': waterMaterial, 'leaf': leafMaterial,
+            'sand': sandMaterial, 'glass': glassMaterial, 'brick': brickMaterial // 🤩 NEW!
+        };
+        
+        const SUN_POSITION = new THREE.Vector3(30, 60, 30); 
+
+        // ---  CHUNK HELPER FUNCTIONS  ---
+        
+        function getChunkKeyForBlock(x, z) {
+            const chunkX = Math.floor(x / CHUNK_SIZE);
+            const chunkZ = Math.floor(z / CHUNK_SIZE);
+            return `${chunkX},${chunkZ}`;
+        }
+        
+        function getCameraChunkKey() {
+             const chunkX = Math.floor(controls.target.x / CHUNK_SIZE);
+             const chunkZ = Math.floor(controls.target.z / CHUNK_SIZE);
+             return { x: chunkX, z: chunkZ };
+        }
+
+        function createChunk(chunkKey) {
+            return {
+                key: chunkKey,
+                blocks: [], //  It's a list of block data, not 3D objects!
+                isVisible: false, //  Start as hidden!
+                isPlaceholder: false //  Is it a real chunk or just a loading placeholder?
+            };
+        }
+        
+        // ---  WORLD GENERATOR!  ---
+        function generateChunk(chunkX, chunkZ) {
+            const chunkKey = `${chunkX},${chunkZ}`;
+            
+            const chunk = createChunk(chunkKey);
+            const blockDataList = [];
+            
+            const addBlockData = (type, x, y, z) => {
+                const key = getBlockKey(x, y, z);
+                if (blockMap.has(key)) return; 
+                const blockData = { type, x, y, z };
+                blockMap.set(key, blockData);
+                blockDataList.push(blockData);
+            };
+            
+            for (let x = 0; x < CHUNK_SIZE; x++) {
+                for (let z = 0; z < CHUNK_SIZE; z++) {
+                    const worldX = chunkX * CHUNK_SIZE + x;
+                    const worldZ = chunkZ * CHUNK_SIZE + z;
+                    
+                    const heightValue = noise.noise2D(worldX / 25, worldZ / 25);
+                    const surfaceY = Math.round(heightValue * 5) + 2; 
+
+                    for (let y = surfaceY; y >= MIN_Y; y--) {
+                        if (y === surfaceY && y > WATER_LEVEL) {
+                            addBlockData('grass', worldX, y, worldZ); 
+                        } else if (y > surfaceY - 4) {
+                            // 🤩 NEW! Add sand beaches!
+                            if (surfaceY <= WATER_LEVEL + 1 && y <= WATER_LEVEL + 1) {
+                                addBlockData('sand', worldX, y, worldZ);
+                            } else {
+                                addBlockData('dirt', worldX, y, worldZ); 
+                            }
+                        } else if (y > BEDROCK_LEVEL) {
+                            addBlockData('stone', worldX, y, worldZ); 
+                        } else {
+                            addBlockData('stone', worldX, y, worldZ); 
+                        }
+                    }
+                    
+                    if (surfaceY < WATER_LEVEL) {
+                        for (let y = WATER_LEVEL; y > surfaceY; y--) {
+                            if (!blockMap.has(getBlockKey(worldX, y, worldZ))) {
+                                addBlockData('water', worldX, y, worldZ);
+                            }
+                        }
+                    }
+
+                    if (surfaceY > WATER_LEVEL) { 
+                        if (Math.random() < 0.01 && x > 0 && x < CHUNK_SIZE-1 && z > 0 && z < CHUNK_SIZE-1) {
+                            const trunkHeight = 3 + Math.floor(Math.random() * 2);
+                            for (let h = 1; h <= trunkHeight; h++) {
+                                addBlockData('log', worldX, surfaceY + h, worldZ);
+                            }
+                            const leafY1 = surfaceY + trunkHeight + 1; 
+                            for (let lx = -1; lx <= 1; lx++) {
+                                for (let lz = -1; lz <= 1; lz++) {
+                                    addBlockData('leaf', worldX + lx, leafY1, worldZ + lz);
+                                }
+                            }
+                            const leafY2 = leafY1 + 1; 
+                            addBlockData('leaf', worldX, leafY2, worldZ);
+                        }
+                    }
+                }
+            }
+            
+            chunk.blocks = blockDataList; 
+            chunks.set(chunkKey, chunk); 
+        }
+
+        // --- 🤩 CHUNK BRAIN! 🧠✨️ ---
+        function updateChunks() {
+            const { x: currentChunkX, z: currentChunkZ } = getCameraChunkKey();
+            const visibleChunksSet = new Set();
+            let visibleChunkCount = 0;
+            
+            const newGenerationQueue = [];
+            
+            for (let r = 0; r <= RENDER_DISTANCE; r++) {
+                for (let cx = currentChunkX - r; cx <= currentChunkX + r; cx++) {
+                    for (let cz = currentChunkZ - r; cz <= currentChunkZ + r; cz++) {
+                        if (r > 0 && (cx > currentChunkX - r && cx < currentChunkX + r) && (cz > currentChunkZ - r && cz < currentChunkZ + r)) {
+                            continue;
+                        }
+                        
+                        const chunkKey = `${cx},${cz}`;
+                        if (visibleChunksSet.has(chunkKey)) continue; 
+                        
+                        visibleChunksSet.add(chunkKey); 
+                    
+                        let chunk = chunks.get(chunkKey);
+                    
+                        if (!chunk) {
+                            newGenerationQueue.push({ cx, cz }); 
+                            chunks.set(chunkKey, { key: chunkKey, isPlaceholder: true, blocks: [], isVisible: false });
+                            
+                        } else if (!chunk.isPlaceholder) {
+                            chunk.isVisible = true;
+                            visibleChunkCount++;
+                        }
+                    }
+                }
+            }
+            
+            for (const [chunkKey, chunk] of chunks.entries()) {
+                if (!visibleChunksSet.has(chunkKey)) {
+                    if (chunk.isPlaceholder) {
+                        chunks.delete(chunkKey);
+                    } else if (chunk.isVisible) {
+                        chunk.isVisible = false;
+                    }
+                }
+            }
+            
+            const oldQueueFiltered = generationQueue.filter(task => {
+                const key = `${task.cx},${task.cz}`;
+                return visibleChunksSet.has(key) && chunks.get(key)?.isPlaceholder;
+            });
+            generationQueue = newGenerationQueue.concat(oldQueueFiltered);
+
+            document.getElementById('chunk-counter').textContent = `Chunks Visible: ${visibleChunkCount}`;
+        }
+        
+        
+        // --- 🤩 RENDER FUNCTION! 🚀 ---
+        function updateInstancedMeshes() {
+            for (const type in instancedMeshes) {
+                instancedMeshes[type].count = 0;
+            }
+            
+            dummy.matrixAutoUpdate = false; 
+            
+            for (const [key, chunk] of chunks.entries()) {
+                if (!chunk.isVisible || chunk.isPlaceholder) {
+                    continue;
+                }
+                
+                for (const blockData of chunk.blocks) {
+                    const mesh = instancedMeshes[blockData.type];
+                    if (!mesh) continue; 
+                    if (mesh.count >= mesh.instanceCount) continue;
+                    
+                    dummy.position.set(blockData.x, blockData.y, blockData.z);
+                    dummy.updateMatrix(); 
+                    
+                    mesh.setMatrixAt(mesh.count, dummy.matrix);
+                    mesh.count++; 
+                }
+            }
+            
+            for (const type in instancedMeshes) {
+                instancedMeshes[type].instanceMatrix.needsUpdate = true;
+            }
+        }
+        
+        // --- END NEW CHUNK/RENDER FUNCTIONS ---
+
+        // --- UTILITY FUNCTIONS ---
+        function getBlockKey(x, y, z) {
+            return `${Math.round(x)},${Math.round(y)},${Math.round(z)}`;
+        }
+        
+        function getSurfaceY(x, z) {
+            for (let y = BUILD_HEIGHT; y >= MIN_Y; y--) { 
+                const block = blockMap.get(getBlockKey(x, y, z));
+                if (block && block.type !== 'water') {
+                    return y + 1; 
+                }
+            }
+            return WATER_LEVEL + 1; 
+        }
+        
+        // --- WATER FLOW LOGIC (Now with data!) ---
+        function spreadWater(originX, originY, originZ, flowDepth = 0) {
+            // 🤩🌊 MORE WATER FLOW!
+            if (flowDepth > 5) return; // 💧 Flow further! (Was 3)
+            if (isPlacingWater) return;
+
+            const downY = originY - 1;
+            const downKey = getBlockKey(originX, downY, originZ);
+            
+            if (downY > BEDROCK_LEVEL) { 
+                const blockBelow = blockMap.get(downKey);
+                if (!blockBelow || (blockBelow && blockBelow.type !== 'water')) {
+                    if (!blockBelow) {
+                        createNewBlock('water', originX, downY, originZ);
+                        setTimeout(() => spreadWater(originX, downY, originZ, 0), 50); 
+                        return; 
+                    }
+                }
+            }
+            
+            if (originY <= WATER_LEVEL || (blockMap.has(downKey) && blockMap.get(downKey).type !== 'water')) {
+                const horizontalNeighbors = [
+                    {x: originX + 1, y: originY, z: originZ}, {x: originX - 1, y: originY, z: originZ},
+                    {x: originX, y: originY, z: originZ + 1}, {x: originX, y: originY, z: originZ - 1}
+                ];
+                for (const {x, y, z} of horizontalNeighbors) {
+                    const key = getBlockKey(x, y, z);
+                    const neighborBlock = blockMap.get(key);
+                    if (y > BEDROCK_LEVEL && y < BUILD_HEIGHT) { 
+                        if (!neighborBlock) {
+                            createNewBlock('water', x, y, z);
+                            setTimeout(() => spreadWater(x, y, z, flowDepth + 1), 50);
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- ANIMAL CREATION AND MOVEMENT (Animals are still 3D objects!) ---
+        function createAnimal(type, x, z) {
+            const animalGroup = new THREE.Group();
+            animalGroup.position.set(x + 0.5, getSurfaceY(x, z), z + 0.5);
+            let bodyMaterial, headMaterial, detailMaterial;
+            let bodySize, headSize, headYOffset, headZOffset;
+            let legMaterial, legPositions;
+
+            const body = new THREE.Mesh(geometry, bodyMaterial); // Placeholder
+            body.castShadow = true; body.receiveShadow = true;
+            animalGroup.add(body);
+
+            if (type === 'pig') {
+                bodyMaterial = pigBodyMaterial; headMaterial = pigBodyMaterial; detailMaterial = pigBodyMaterial;
+                bodySize = {x: 0.8, y: 0.6, z: 0.6}; headSize = {x: 0.4, y: 0.4, z: 0.4};
+                headYOffset = 0.2; legMaterial = pigBodyMaterial;
+            } else if (type === 'sheep') { 
+                bodyMaterial = sheepBodyMaterial; headMaterial = sheepFaceMaterial; detailMaterial = sheepFaceMaterial;
+                bodySize = {x: 0.9, y: 0.7, z: 0.7}; headSize = {x: 0.4, y: 0.4, z: 0.4};
+                headYOffset = 0.25; legMaterial = sheepFaceMaterial;
+            } else if (type === 'cow') { // 🐄 NEW!
+                bodyMaterial = cowBodyMaterial; headMaterial = cowBodyMaterial; detailMaterial = cowSpotMaterial;
+                bodySize = {x: 1.2, y: 0.9, z: 0.9}; headSize = {x: 0.5, y: 0.5, z: 0.5};
+                headYOffset = 0.3; legMaterial = cowSpotMaterial;
+            } else if (type === 'chicken') { // 🐔 NEW!
+                bodyMaterial = chickenBodyMaterial; headMaterial = chickenBodyMaterial; detailMaterial = chickenDetailMaterial;
+                bodySize = {x: 0.5, y: 0.4, z: 0.4}; headSize = {x: 0.3, y: 0.3, z: 0.3};
+                headYOffset = 0.15; legMaterial = beakMaterial; // Use beak color for legs
+            }
+            
+            headZOffset = bodySize.z / 2 + headSize.z / 2;
+
+            // Body
+            body.geometry = new THREE.BoxGeometry(bodySize.x, bodySize.y, bodySize.z);
+            body.material = bodyMaterial;
+
+            // Head
+            const headGeometry = new THREE.BoxGeometry(headSize.x, headSize.y, headSize.z);
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.set(0, headYOffset, headZOffset);
+            head.castShadow = true; animalGroup.add(head);
+            
+            // Ears (for mammals)
+            if (type === 'pig' || type === 'sheep' || type === 'cow') {
+                const earGeo = new THREE.BoxGeometry(0.1, 0.2, 0.1);
+                const earLeft = new THREE.Mesh(earGeo, (type === 'pig' ? pigBodyMaterial : (type === 'sheep' ? sheepFaceMaterial : cowBodyMaterial)));
+                earLeft.position.set(-headSize.x / 2, headYOffset + (headSize.y / 2), headZOffset);
+                animalGroup.add(earLeft);
+                const earRight = new THREE.Mesh(earGeo, (type === 'pig' ? pigBodyMaterial : (type === 'sheep' ? sheepFaceMaterial : cowBodyMaterial)));
+                earRight.position.set(headSize.x / 2, headYOffset + (headSize.y / 2), headZOffset);
+                animalGroup.add(earRight);
+            }
+
+            // Pig Snout 🐷
+            if (type === 'pig') {
+                const snoutGeo = new THREE.BoxGeometry(0.2, 0.15, 0.1);
+                const snout = new THREE.Mesh(snoutGeo, pigBodyMaterial); 
+                snout.position.set(0, headYOffset - 0.05, headZOffset + (headSize.z / 2) + 0.05);
+                animalGroup.add(snout);
+            }
+            
+            // Cow Spots & Horns 🐄
+            if (type === 'cow') {
+                for (let i = 0; i < 5; i++) {
+                    const spotGeo = new THREE.BoxGeometry(Math.random()*0.3+0.1, Math.random()*0.3+0.1, Math.random()*0.3+0.1);
+                    const spot = new THREE.Mesh(spotGeo, cowSpotMaterial);
+                    spot.position.set((Math.random()-0.5)*bodySize.x, (Math.random()-0.5)*bodySize.y, (Math.random()-0.5)*bodySize.z);
+                    body.add(spot); // Add spots *to the body*
+                }
+                const hornGeo = new THREE.BoxGeometry(0.1, 0.2, 0.1);
+                const horn1 = new THREE.Mesh(hornGeo, cowSpotMaterial);
+                horn1.position.set(-headSize.x/2 + 0.1, headYOffset + headSize.y/2, headZOffset);
+                animalGroup.add(horn1);
+                const horn2 = new THREE.Mesh(hornGeo, cowSpotMaterial);
+                horn2.position.set(headSize.x/2 - 0.1, headYOffset + headSize.y/2, headZOffset);
+                animalGroup.add(horn2);
+            }
+            
+            // Chicken Wattle & Beak 🐔
+            if (type === 'chicken') {
+                const wattleGeo = new THREE.BoxGeometry(0.1, 0.1, 0.05);
+                const wattle = new THREE.Mesh(wattleGeo, chickenDetailMaterial);
+                wattle.position.set(0, headYOffset - headSize.y/2 + 0.1, headZOffset + headSize.z/2);
+                animalGroup.add(wattle);
+                const beakGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+                const beak = new THREE.Mesh(beakGeo, beakMaterial);
+                beak.position.set(0, headYOffset, headZOffset + headSize.z/2 + 0.05);
+                animalGroup.add(beak);
+            }
+
+            // Legs
+            const legSize = (type === 'chicken') ? 0.1 : 0.2;
+            const legY = -(bodySize.y / 2) - (legSize / 2);
+            
+            if (type === 'chicken') {
+                legPositions = [{x: 0.15, z: 0.1}, {x: -0.15, z: 0.1}];
+            } else if (type === 'cow') {
+                legPositions = [{x: 0.45, z: 0.3}, {x: -0.45, z: 0.3}, {x: 0.45, z: -0.3}, {x: -0.45, z: -0.3}];
+            } else if (type === 'sheep') {
+                legPositions = [{x: 0.35, z: 0.25}, {x: -0.35, z: 0.25}, {x: 0.35, z: -0.25}, {x: -0.35, z: -0.25}];
+            } else { // pig
+                legPositions = [{x: 0.3, z: 0.2}, {x: -0.3, z: 0.2}, {x: 0.3, z: -0.2}, {x: -0.3, z: -0.2}];
+            }
+
+            legPositions.forEach(pos => {
+                const legGeometry = new THREE.BoxGeometry(legSize, legSize, legSize);
+                const leg = new THREE.Mesh(legGeometry, legMaterial);
+                leg.position.set(pos.x, legY, pos.z);
+                leg.castShadow = true; animalGroup.add(leg);
+            });
+            
+            animalGroup.userData = {
+                type: type, currentTile: {x: x, z: z}, targetTile: {x: x, z: z},
+                speed: 0.01 + Math.random() * 0.01, lastMoveTime: 0
+            };
+            scene.add(animalGroup);
+            animalList.push(animalGroup);
+        }
+
+        function updateAnimals(time) {
+            const moveInterval = 3000; 
+            animalList.forEach(animal => {
+                const data = animal.userData;
+                if (time - data.lastMoveTime > moveInterval) {
+                    const currentX = Math.round(animal.position.x - 0.5);
+                    const currentZ = Math.round(animal.position.z - 0.5);
+                    const potentialMoves = [
+                        {dx: 0, dz: 0}, {dx: 1, dz: 0}, {dx: -1, dz: 0}, 
+                        {dx: 0, dz: 1}, {dx: 0, dz: -1}
+                    ];
+                    let newTargetX, newTargetZ;
+                    let validMoveFound = false;
+                    for (let i = 0; i < 5; i++) {
+                        const move = potentialMoves[Math.floor(Math.random() * potentialMoves.length)];
+                        const tx = currentX + move.dx;
+                        const tz = currentZ + move.dz;
+                        const surfaceY = getSurfaceY(tx, tz);
+                        if (surfaceY > BEDROCK_LEVEL && surfaceY < BUILD_HEIGHT) { 
+                            newTargetX = tx; newTargetZ = tz;
+                            validMoveFound = true; break;
+                        }
+                    }
+                    if (validMoveFound) {
+                         data.targetTile = {x: newTargetX, z: newTargetZ};
+                         data.lastMoveTime = time;
+                         const targetPosition = new THREE.Vector3(data.targetTile.x + 0.5, animal.position.y, data.targetTile.z + 0.5);
+                         animal.lookAt(targetPosition);
+                    }
+                }
+                const targetX = data.targetTile.x + 0.5;
+                const targetY = getSurfaceY(data.targetTile.x, data.targetTile.z);
+                const targetZ = data.targetTile.z + 0.5;
+                animal.position.x += (targetX - animal.position.x) * data.speed;
+                animal.position.y += (targetY - animal.position.y) * data.speed;
+                animal.position.z += (targetZ - animal.position.z) * data.speed;
+            });
+        }
+
+        // --- BLOCK MANAGEMENT (Now with data!) ---
+        function createNewBlock(type, x, y, z) {
+            const key = getBlockKey(x, y, z);
+            if (blockMap.has(key)) return; 
+            
+            const blockData = { type, x, y, z };
+            blockMap.set(key, blockData); 
+            
+            const chunkKey = getChunkKeyForBlock(x, z);
+            let chunk = chunks.get(chunkKey);
+            if (!chunk || chunk.isPlaceholder) {
+                chunk = createChunk(chunkKey);
+                chunk.isVisible = true; 
+                chunks.set(chunkKey, chunk);
+            }
+            
+            chunk.blocks.push(blockData); 
+            
+            if (type === 'water') {
+                isPlacingWater = true; 
+                setTimeout(() => {
+                    spreadWater(x, y, z, 0);
+                    isPlacingWater = false; 
+                }, 100); 
+            }
+            return blockData;
+        }
+        
+        function removeBlock(blockData, key) {
+            blockMap.delete(key);
+            
+            const chunkKey = getChunkKeyForBlock(blockData.x, blockData.z);
+            let chunk = chunks.get(chunkKey);
+            if (chunk && !chunk.isPlaceholder) {
+                chunk.blocks = chunk.blocks.filter(b => b.x !== blockData.x || b.y !== blockData.y || b.z !== blockData.z);
+            }
+        }
+
+        // --- INTERACTION HANDLER (Now uses InstancedMesh!) ---
+        function handleCreativeInteraction(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            
+            const intersects = raycaster.intersectObjects(Object.values(instancedMeshes)); 
+
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                const instanceId = intersect.instanceId; 
+                const mesh = intersect.object; 
+                
+                const matrix = new THREE.Matrix4();
+                mesh.getMatrixAt(instanceId, matrix);
+                const pos = new THREE.Vector3().setFromMatrixPosition(matrix);
+                
+                const key = getBlockKey(pos.x, pos.y, pos.z);
+                const blockData = blockMap.get(key);
+                
+                if (!blockData) return; 
+                
+                if (currentTool === 'break') {
+                    if (blockData.y <= BEDROCK_LEVEL) return;
+                    removeBlock(blockData, key); 
+                // 🤩 NEW ANIMAL CHECK!
+                } else if (currentTool === 'pig' || currentTool === 'sheep' || currentTool === 'cow' || currentTool === 'chicken') {
+                    const normal = intersect.face.normal;
+                    const spawnX = Math.round(pos.x + normal.x);
+                    const spawnZ = Math.round(pos.z + normal.z);
+                    createAnimal(currentTool, spawnX, spawnZ);
+                } else {
+                    const normal = intersect.face.normal;
+                    const newX = Math.round(pos.x + normal.x);
+                    const newY = Math.round(pos.y + normal.y);
+                    const newZ = Math.round(pos.z + normal.z);
+                    
+                    if (newY <= BEDROCK_LEVEL || newY > BUILD_HEIGHT) return; 
+                    
+                    createNewBlock(currentTool, newX, newY, newZ); 
+                }
+            }
+        }
+        
+        // --- GAME INITIALIZATION ---
+        function init() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            noise = new SimplexNoise();
+
+            // 1. Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x4DD0E1); // Teal Sky
+            scene.fog = new THREE.Fog(0x4DD0E1, 20, 40);
+
+            // 2. Camera
+            camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+            camera.position.set(5, 25, 15); 
+
+            // 3. Renderer
+            renderer = new THREE.WebGLRenderer({ antias: true });
+            renderer.setSize(width, height);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // 4. CREATE THE INSTANCED MESHES!
+            const instancedGeometry = new THREE.BoxGeometry(1, 1, 1);
+            for (const type in blockMaterials) {
+                const material = blockMaterials[type];
+                const mesh = new THREE.InstancedMesh(instancedGeometry, material, MAX_BLOCKS_PER_TYPE);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                instancedMeshes[type] = mesh;
+                scene.add(mesh);
+            }
+
+            // 5. Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; 
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 0, 0); 
+            controls.update();
+            
+            // 6. Lights
+            const sunGeometry = new THREE.BoxGeometry(5, 5, 5); 
+            const sunCube = new THREE.Mesh(sunGeometry, sunMaterial);
+            sunCube.position.copy(SUN_POSITION);
+            sunCube.rotation.set(0.78, 0.78, 0.78); 
+            scene.add(sunCube);
+            
+            directionalLight = new THREE.DirectionalLight(0xffffff, 1.2); 
+            directionalLight.position.copy(SUN_POSITION); 
+            directionalLight.castShadow = true; 
+            
+            const cameraSize = 40; 
+            directionalLight.shadow.camera.left = -cameraSize;
+            directionalLight.shadow.camera.right = cameraSize;
+            directionalLight.shadow.camera.top = cameraSize;
+            directionalLight.shadow.camera.bottom = -cameraSize; 
+            directionalLight.shadow.camera.near = 0.1;
+            directionalLight.shadow.camera.far = 100;
+            directionalLight.shadow.mapSize.width = 2048; 
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); 
+            scene.add(ambientLight);
+
+            // 7. Build the World
+            updateChunks();
+
+            // 8. Add Interaction Listener
+            renderer.domElement.addEventListener('mousedown', handleCreativeInteraction, false);
+            renderer.domElement.addEventListener('touchstart', (e) => {
+                if (e.target.closest('#toolbox') || e.target.closest('#tool-modal')) return;
+                e.preventDefault(); 
+                e.clientX = e.touches[0].clientX;
+                e.clientY = e.touches[0].clientY;
+                handleCreativeInteraction(e);
+            }, false);
+            
+            // 9. 🤩 Add NEW Toolbox Listeners
+            const menuButton = document.getElementById('tool-menu-button');
+            const modal = document.getElementById('tool-modal');
+            const closeButton = document.getElementById('close-modal-button');
+            
+            menuButton.addEventListener('click', () => {
+                modal.classList.remove('hidden');
+            });
+            closeButton.addEventListener('click', () => {
+                modal.classList.add('hidden');
+            });
+            
+            document.querySelectorAll('.tool-option').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const tool = e.currentTarget.getAttribute('data-tool');
+                    changeTool(tool);
+                });
+            });
+
+            // 10. Handle resizing of the window
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        // --- 🤩 TOOLBOX LOGIC (Updated for new modal) ---
+        function changeTool(toolName) {
+            currentTool = toolName;
+            const iconDisplay = document.getElementById('current-tool-icon');
+            const textDisplay = document.getElementById('current-tool-display');
+            const menuButton = document.getElementById('tool-menu-button');
+            const modal = document.getElementById('tool-modal');
+            
+            const toolElement = document.querySelector(`[data-tool="${toolName}"]`);
+            const toolText = toolElement.querySelector('span:last-child').textContent.trim();
+            
+            // Reset button color
+            menuButton.classList.remove('bg-indigo-500', 'bg-green-500', 'bg-amber-500', 'bg-gray-500', 'bg-blue-500', 'bg-pink-500', 'bg-yellow-500', 'bg-cyan-500', 'bg-red-500');
+            
+            if (toolName === 'break') {
+                iconDisplay.textContent = '🔨';
+                textDisplay.textContent = 'Break';
+                menuButton.classList.add('bg-indigo-500');
+            } else if (toolName === 'pig' || toolName === 'sheep' || toolName === 'cow' || toolName === 'chicken') {
+                iconDisplay.textContent = toolElement.querySelector('span:first-child').textContent;
+                textDisplay.textContent = toolText;
+                menuButton.classList.add('bg-pink-500');
+            } else {
+                // It's a block!
+                iconDisplay.innerHTML = toolElement.querySelector('svg').outerHTML;
+                textDisplay.textContent = toolText;
+                
+                // Set color based on block
+                if (['grass', 'leaf'].includes(toolName)) menuButton.classList.add('bg-green-500');
+                else if (['dirt', 'log'].includes(toolName)) menuButton.classList.add('bg-amber-500');
+                else if (toolName === 'stone') menuButton.classList.add('bg-gray-500');
+                else if (toolName === 'water') menuButton.classList.add('bg-blue-500');
+                else if (toolName === 'sand') menuButton.classList.add('bg-yellow-500');
+                else if (toolName === 'glass') menuButton.classList.add('bg-cyan-500');
+                else if (toolName === 'brick') menuButton.classList.add('bg-red-500');
+                else menuButton.classList.add('bg-indigo-500'); // Default
+            }
+            
+            modal.classList.add('hidden'); // Close modal on selection
+        }
+
+        // --- The Animation Loop ---
+        function animate(time) {
+            requestAnimationFrame(animate); 
+
+            controls.update(); 
+            
+            if (time - lastChunkCheckTime > CHECK_CHUNKS_INTERVAL) {
+                lastChunkCheckTime = time;
+                updateChunks();
+            }
+            
+            if (time - lastGenerationTime > GENERATE_CHUNK_INTERVAL && generationQueue.length > 0) {
+                lastGenerationTime = time; 
+                const task = generationQueue.shift(); 
+                
+                const chunk = chunks.get(`${task.cx},${task.cz}`);
+                if (chunk && chunk.isPlaceholder) {
+                    generateChunk(task.cx, task.cz);
+                }
+            }
+            
+            const posDisplay = document.getElementById('position-display');
+            posDisplay.textContent = 
+                `X: ${camera.position.x.toFixed(1)} | ` +
+                `Y: ${camera.position.y.toFixed(1)} | ` +
+                `Z: ${camera.position.z.toFixed(1)}`;
+            
+            updateAnimals(time);
+            updateInstancedMeshes();
+            renderer.render(scene, camera); 
+        }
+
+        function onWindowResize() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        window.onload = function () {
+            init(); 
+            animate(0); 
+        }
+    </script>
+</body>
+</html>

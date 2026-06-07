@@ -2,6 +2,9 @@
 
 A super smart, all-in-one web app that guesses how you are feeling based on your stories, thoughts, or adventures!
 
+![Bowies Mood Detector GIF](https://raw.githubusercontent.com/BowieP/bowies-lab/refs/heads/main/mood-detector/mooddetectorgif.gif)
+
+
 ## 🚀 About the Project
 Have you ever wanted to tell a story and see if a computer can figure out your mood? This project is a fun way to do just that. Using a custom logic engine, it analyzes your input, matches it against a library of moods, and predicts your current vibe—complete with custom vector graphics!
 

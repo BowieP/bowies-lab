@@ -2,6 +2,9 @@
 
 Bowie's 3D World is a lightweight, browser-based voxel sandbox game. Built entirely with HTML, JavaScript, and Three.js, it features procedurally generated infinite terrain, dynamic fluid mechanics, and interactive block-building capabilities, all running seamlessly in the client.
 
+![Bowies 3D World GIF](https://github.com/BowieP/bowies-lab/blob/main/3d-block-builder/bowies3dworldgif.gif?raw=true)
+
+
 ## ✨ Features
 
 * **Procedural Generation:** Utilizes Simplex Noise to generate infinite, distinct biomes and terrain on the fly.

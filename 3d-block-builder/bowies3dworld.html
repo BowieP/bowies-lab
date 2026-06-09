@@ -111,9 +111,33 @@
             </div>
         </div>
 
-        <!-- Position Display Box -->
-        <div id="position-display" class="absolute top-4 right-4 p-2 bg-pink-300/80 text-black rounded-xl shadow-lg text-sm font-bold z-10 sm:text-base">
-            X: 0.0 | Y: 0.0 | Z: 0.0
+        <!-- NEW! Settings Modal -->
+        <div id="settings-modal" class="hidden fixed inset-0 bg-gray-900/70 z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 relative">
+                <!-- Close Button -->
+                <button id="close-settings-button" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl font-bold transition transform hover:scale-110">
+                    &times;
+                </button>
+                <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Settings</h2>
+                <div class="flex flex-col space-y-4 text-center">
+                    <p class="text-gray-600 text-sm">Your world is auto-saved every 5 seconds.</p>
+                    <button id="export-world-button" class="w-full p-4 bg-blue-500 hover:bg-blue-600 text-white rounded-xl shadow-lg font-semibold text-lg transition transform hover:scale-105">Export World (JSON File)</button>
+                    <button id="import-world-button" class="w-full p-4 bg-green-500 hover:bg-green-600 text-white rounded-xl shadow-lg font-semibold text-lg transition transform hover:scale-105">Import World (JSON File)</button>
+                    <input type="file" id="import-world-file-input" class="hidden" accept=".json">
+
+                    <!-- Hidden file input for loading -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Right UI (Position & Settings) -->
+        <div class="absolute top-4 right-4 flex items-center space-x-2 z-10">
+            <button id="settings-button" class="p-3 bg-gray-500/80 hover:bg-gray-600/80 text-white rounded-xl shadow-lg focus:outline-none transition transform hover:scale-105 text-xl">
+                ⚙️
+            </button>
+            <div id="position-display" class="p-2 bg-pink-300/80 text-black rounded-xl shadow-lg text-sm font-bold sm:text-base">
+                X: 0.0 | Y: 0.0 | Z: 0.0
+            </div>
         </div>
         
         <!-- Chunk Counter -->
@@ -139,7 +163,7 @@
         const MAX_BLOCKS_PER_TYPE = 250000; // 250000 Blocks
         
         // --- GAME STATE ---
-        let scene, camera, renderer, directionalLight, controls; 
+        let scene, camera, renderer, directionalLight, controls;
         let blockMap = new Map(); // Store block *data* by position string "x,y,z"
         let animalList = []; // List to track moving animals
         
@@ -647,7 +671,7 @@
                     }
                     if (validMoveFound) {
                          data.targetTile = {x: newTargetX, z: newTargetZ};
-                         data.lastMoveTime = time;
+                         data.lastMoveTime = time + (Math.random() * 2000); // Stagger next move
                          const targetPosition = new THREE.Vector3(data.targetTile.x + 0.5, animal.position.y, data.targetTile.z + 0.5);
                          animal.lookAt(targetPosition);
                     }
@@ -655,9 +679,12 @@
                 const targetX = data.targetTile.x + 0.5;
                 const targetY = getSurfaceY(data.targetTile.x, data.targetTile.z);
                 const targetZ = data.targetTile.z + 0.5;
-                animal.position.x += (targetX - animal.position.x) * data.speed;
-                animal.position.y += (targetY - animal.position.y) * data.speed;
-                animal.position.z += (targetZ - animal.position.z) * data.speed;
+                // Only move if target is valid
+                if (targetY > BEDROCK_LEVEL) {
+                    animal.position.x += (targetX - animal.position.x) * data.speed;
+                    animal.position.y += (targetY - animal.position.y) * data.speed;
+                    animal.position.z += (targetZ - animal.position.z) * data.speed;
+                }
             });
         }
 
@@ -688,6 +715,7 @@
             }
             return blockData;
         }
+
         
         function removeBlock(blockData, key) {
             blockMap.delete(key);
@@ -753,18 +781,215 @@
                     
                     if (newY <= BEDROCK_LEVEL || newY > BUILD_HEIGHT) return; 
                     
-                    createNewBlock(activeTool, newX, newY, newZ); 
+                    const newBlock = createNewBlock(activeTool, newX, newY, newZ);
+                    // Sounds removed
                 }
             }
         }
         
-        // --- GAME INITIALIZATION ---
-        function init() {
+        // --- INDEXEDDB & SAVE/LOAD FUNCTIONS ---
+        const DB_NAME = 'Bowie3DBuilderDB'; // Database name
+        const STORE_NAME = 'worlds';
+        const WORLD_KEY = 'currentWorld';
+        let db;
+
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+
+                request.onupgradeneeded = (event) => {
+                    const dbInstance = event.target.result;
+                    if (!dbInstance.objectStoreNames.contains(STORE_NAME)) {
+                        dbInstance.createObjectStore(STORE_NAME);
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    console.log("Database initialized successfully.");
+                    resolve(db);
+                };
+
+                request.onerror = (event) => {
+                    console.error("IndexedDB error:", event.target.errorCode);
+                    reject(event.target.errorCode);
+                };
+            });
+        }
+
+        // Saves the current world state to IndexedDB (used for auto-save)
+        function saveWorldToIndexedDB() {
+            if (!db) { console.warn("IndexedDB not ready, skipping auto-save."); return; }
+            console.log("Auto-saving world to IndexedDB...");
+            const worldData = {
+                blocks: Array.from(blockMap.values()),
+                animals: animalList.map(animal => ({
+                    type: animal.userData.type,
+                    x: animal.position.x - 0.5,
+                    z: animal.position.z - 0.5,
+                }))
+            };
+
+            const transaction = db.transaction([STORE_NAME], 'readwrite');
+            const objectStore = transaction.objectStore(STORE_NAME);
+            const request = objectStore.put(worldData, WORLD_KEY);
+
+            request.onsuccess = () => {
+                console.log("World auto-saved to IndexedDB successfully!");
+            };
+            request.onerror = (event) => {
+                console.error("Error auto-saving world to IndexedDB:", event.target.errorCode);
+            };
+        }
+
+        // Loads the world state from IndexedDB (used for auto-load on startup)
+        function loadWorldFromIndexedDB() {
+            if (!db) { 
+                console.warn("IndexedDB not ready, cannot auto-load.");
+                updateChunks(); // Generate a new world if DB isn't ready
+                return; }
+            console.log("Loading world from IndexedDB...");
+            
+            const transaction = db.transaction([STORE_NAME], 'readonly');
+            const objectStore = transaction.objectStore(STORE_NAME);
+            const request = objectStore.get(WORLD_KEY);
+
+            request.onsuccess = (event) => {
+                const worldData = event.target.result;
+                if (!worldData || !worldData.blocks || worldData.blocks.length === 0) {
+                    alert("No saved world found in the database.");
+                    // If no world is found on load, generate a new one
+                    updateChunks();
+                    return;
+                }
+
+                // 1. Clear current world state
+                blockMap.clear(); 
+                chunks.clear();
+                animalList.forEach(animal => scene.remove(animal));
+                animalList = [];
+                for (const type in instancedMeshes) { instancedMeshes[type].count = 0; }
+
+                // 2. Load blocks
+                worldData.blocks.forEach(block => {
+                    createNewBlock(block.type, block.x, block.y, block.z);
+                });
+
+                // 3. Load animals (if they exist)
+                if (worldData.animals) {
+                    worldData.animals.forEach(animalData => {
+                        createAnimal(animalData.type, animalData.x, animalData.z);
+                    });
+                }
+
+                // 4. Refresh the world
+                updateChunks();
+                console.log("World loaded successfully from IndexedDB!");
+                alert("World Loaded!");
+            };
+            request.onerror = (event) => {
+                console.error("Error loading world from IndexedDB:", event.target.errorCode);
+                alert("Error: Could not load the world from IndexedDB.");
+                updateChunks(); // Generate a new world if loading fails
+            };
+        }
+
+        // --- FILE-BASED JSON EXPORT/IMPORT FUNCTIONS ---
+
+        // Exports the current world state to a JSON file
+        function exportWorldToFile() {
+            console.log("Exporting world to JSON file...");
+            const worldData = {
+                blocks: Array.from(blockMap.values()),
+                animals: animalList.map(animal => ({
+                    type: animal.userData.type,
+                    x: animal.position.x - 0.5,
+                    z: animal.position.z - 0.5,
+                }))
+            };
+
+            const jsonString = JSON.stringify(worldData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `bowie-world-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            console.log("World exported as JSON file!");
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        // Imports a world state from a JSON file
+        function importWorldFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const worldData = JSON.parse(e.target.result);
+                    if (!worldData.blocks) { // Animals are optional
+                        throw new Error("Invalid world file format.");
+                    }
+
+                    console.log("Loading world from JSON file...");
+                    // Clear current world state and load new data
+                    clearAndLoadWorldData(worldData);
+                    console.log("World loaded successfully from JSON file!");
+                    alert("World Loaded from File!");
+                } catch (error) {
+                    console.error("Failed to import world from file:", error);
+                    alert("Error: Could not import the world file. It may be corrupted or in the wrong format.");
+                }
+                document.getElementById('settings-modal').classList.add('hidden');
+            };
+            reader.readAsText(file);
+        }
+
+        // Helper function to clear current world and load new data
+        function clearAndLoadWorldData(worldData) {
+            blockMap.clear();
+            chunks.clear();
+            animalList.forEach(animal => scene.remove(animal));
+            animalList = [];
+            for (const type in instancedMeshes) { instancedMeshes[type].count = 0; }
+
+            worldData.blocks.forEach(block => {
+                createNewBlock(block.type, block.x, block.y, block.z);
+            });
+
+            if (worldData.animals) {
+                worldData.animals.forEach(animalData => {
+                    createAnimal(animalData.type, animalData.x, animalData.z);
+                });
+            }
+            updateChunks();
+        }
+
+        let autoSaveIntervalId; // To store the interval ID for auto-save
+        const AUTO_SAVE_INTERVAL_MS = 5000; // Auto-save every 5 seconds
+
+        // --- GAME INITIALIZATION (NOW ASYNC!) ---
+        async function init() {
             const width = window.innerWidth;
             const height = window.innerHeight;
             
             noise = new SimplexNoise();
-
+            
+            // Wait for the database to be ready before doing anything else
+            try {
+                await initDB();
+                // Start auto-save once DB is ready
+                autoSaveIntervalId = setInterval(saveWorldToIndexedDB, AUTO_SAVE_INTERVAL_MS);
+                console.log(`Auto-save enabled every ${AUTO_SAVE_INTERVAL_MS / 1000} seconds.`);
+            } catch (error) {
+                console.error("Database could not be initialized. Saving/Loading will not work.", error);
+                alert("Warning: Could not connect to the local database. Your world will not be saved.");
+            }
             // 1. Scene
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x4DD0E1); // Teal Sky
@@ -798,10 +1023,11 @@
             // 5. Controls
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true; 
-            controls.dampingFactor = 0.15;
-            controls.zoomSpeed = 3.5;     // Much stronger zoom to prevent "weakness" or timing out
+            controls.dampingFactor = 0.05; // Makes camera movement smoother
+            controls.rotateSpeed = 0.5;    // Slows down rotation for more control
+            controls.zoomSpeed = 1.2;      // A more standard zoom speed
             controls.minDistance = 2;     // Prevent zooming into the "nothingness"
-            controls.maxDistance = 150;   // Keep the world in view
+            controls.maxDistance = 100;   // Keep the world in view
             controls.target.set(0, 0, 0); 
             controls.update();
             
@@ -829,8 +1055,9 @@
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); 
             scene.add(ambientLight);
 
-            // 7. Build the World
-            updateChunks();
+            // 7. Build the World - Try loading from IndexedDB first, otherwise generate new
+            loadWorldFromIndexedDB();
+
 
             // 8. Add Interaction Listener
             renderer.domElement.addEventListener('pointerdown', (e) => {
@@ -864,6 +1091,20 @@
                     changeTool(tool);
                 });
             });
+
+            // Add Settings Modal Listeners
+            const settingsButton = document.getElementById('settings-button');
+            const settingsModal = document.getElementById('settings-modal');
+            const closeSettingsButton = document.getElementById('close-settings-button');
+            const exportWorldButton = document.getElementById('export-world-button');
+            const importWorldButton = document.getElementById('import-world-button');
+            const importWorldFileInput = document.getElementById('import-world-file-input');
+
+            if (settingsButton && settingsModal) settingsButton.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+            if (closeSettingsButton && settingsModal) closeSettingsButton.addEventListener('click', () => settingsModal.classList.add('hidden'));
+            if (exportWorldButton) exportWorldButton.addEventListener('click', exportWorldToFile);
+            if (importWorldButton && importWorldFileInput) importWorldButton.addEventListener('click', () => importWorldFileInput.click());
+            if (importWorldFileInput) importWorldFileInput.addEventListener('change', importWorldFromFile);
 
             // 10. Handle resizing of the window
             window.addEventListener('resize', onWindowResize, false);
@@ -953,9 +1194,238 @@
             renderer.setSize(width, height);
         }
 
-        window.onload = function () {
-            init(); 
-            animate(0); 
+        window.onload = async function () {
+            await init(); // Wait for the async init function to complete
+            animate(0); // Then start the animation loop
+        }
+    </script>
+</body>
+</html>
+                alert("Error: Could not load the world.");
+            };
+        }
+
+        // --- GAME INITIALIZATION (NOW ASYNC!) ---
+        async function init() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            noise = new SimplexNoise();
+            
+            // Wait for the database to be ready before doing anything else
+            try {
+                await initDB();
+            } catch (error) {
+                console.error("Database could not be initialized. Saving/Loading will not work.", error);
+                alert("Warning: Could not connect to the local database. Your world will not be saved.");
+            }
+            // 1. Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x4DD0E1); // Teal Sky
+            scene.fog = new THREE.Fog(0x4DD0E1, 20, 40);
+
+            // 2. Camera
+            camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+            camera.position.set(5, 25, 15); 
+
+            // 3. Renderer
+            renderer = new THREE.WebGLRenderer({ antias: true });
+            renderer.setSize(width, height);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // 4. CREATE THE INSTANCED MESHES!
+            const instancedGeometry = new THREE.BoxGeometry(1, 1, 1);
+            for (const type in blockMaterials) {
+                const material = blockMaterials[type];
+                const mesh = new THREE.InstancedMesh(instancedGeometry, material, MAX_BLOCKS_PER_TYPE);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                mesh.frustumCulled = false;
+                // Set a large bounding sphere so raycasting works correctly throughout the infinite world
+                mesh.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1000);
+                instancedMeshes[type] = mesh;
+                scene.add(mesh);
+            }
+
+            // 5. Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; 
+            controls.dampingFactor = 0.05; // Makes camera movement smoother
+            controls.rotateSpeed = 0.5;    // Slows down rotation for more control
+            controls.zoomSpeed = 1.2;      // A more standard zoom speed
+            controls.minDistance = 2;     // Prevent zooming into the "nothingness"
+            controls.maxDistance = 100;   // Keep the world in view
+            controls.target.set(0, 0, 0); 
+            controls.update();
+            
+            // 6. Lights
+            const sunGeometry = new THREE.BoxGeometry(5, 5, 5); 
+            const sunCube = new THREE.Mesh(sunGeometry, sunMaterial);
+            sunCube.position.copy(SUN_POSITION);
+            sunCube.rotation.set(0.78, 0.78, 0.78); 
+            scene.add(sunCube);
+            
+            directionalLight = new THREE.DirectionalLight(0xffffff, 1.2); 
+            directionalLight.position.copy(SUN_POSITION); 
+            directionalLight.castShadow = true; 
+            
+            const cameraSize = 40; 
+            directionalLight.shadow.camera.left = -cameraSize;
+            directionalLight.shadow.camera.right = cameraSize;
+            directionalLight.shadow.camera.top = cameraSize;
+            directionalLight.shadow.camera.bottom = -cameraSize; 
+            directionalLight.shadow.camera.near = 0.1;
+            directionalLight.shadow.camera.far = 100;
+            directionalLight.shadow.mapSize.width = 2048; 
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); 
+            scene.add(ambientLight);
+
+            // 7. Build the World - Try loading first, otherwise generate new
+            // We will call loadWorld directly, which now handles both cases.
+            // The 'loadWorld' function will call 'updateChunks' if no save is found.
+            loadWorld();
+
+
+            // 8. Add Interaction Listener
+            renderer.domElement.addEventListener('pointerdown', (e) => {
+                isMouseDown = true;
+                mouseDownPos.set(e.clientX, e.clientY);
+            }, false);
+
+            renderer.domElement.addEventListener('pointerup', (e) => {
+                if (!isMouseDown) return;
+                isMouseDown = false;
+                // Only interact if the mouse didn't move much (prevents interaction while rotating camera)
+                const moveDist = Math.hypot(e.clientX - mouseDownPos.x, e.clientY - mouseDownPos.y);
+                if (moveDist < 15) handleCreativeInteraction(e);
+            }, false);
+            
+            // 9. Add NEW Toolbox Listeners
+            const menuButton = document.getElementById('tool-menu-button');
+            const modal = document.getElementById('tool-modal');
+            const closeButton = document.getElementById('close-modal-button');
+            
+            menuButton.addEventListener('click', () => {
+                modal.classList.remove('hidden');
+            });
+            closeButton.addEventListener('click', () => {
+                modal.classList.add('hidden');
+            });
+            
+            document.querySelectorAll('.tool-option').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const tool = e.currentTarget.getAttribute('data-tool');
+                    changeTool(tool);
+                });
+            });
+
+            // Add Settings Modal Listeners
+            const settingsButton = document.getElementById('settings-button');
+            const settingsModal = document.getElementById('settings-modal');
+            const closeSettingsButton = document.getElementById('close-settings-button');
+            const saveWorldButton = document.getElementById('save-world-button');
+            const loadWorldButton = document.getElementById('load-world-button');
+
+            if (settingsButton && settingsModal) settingsButton.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+            if (closeSettingsButton && settingsModal) closeSettingsButton.addEventListener('click', () => settingsModal.classList.add('hidden')); // Corrected from previous state
+            if (saveWorldButton) saveWorldButton.addEventListener('click', saveWorld);
+            if (loadWorldButton) loadWorldButton.addEventListener('click', loadWorld);
+
+            // 10. Handle resizing of the window
+            window.addEventListener('resize', onWindowResize, false);
+
+            // 11. Prevent context menu so Right Click works for placing!
+            window.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+
+        // --- TOOLBOX LOGIC (Updated for new modal) ---
+        function changeTool(toolName) {
+            currentTool = toolName;
+            const iconDisplay = document.getElementById('current-tool-icon');
+            const textDisplay = document.getElementById('current-tool-display');
+            const menuButton = document.getElementById('tool-menu-button');
+            const modal = document.getElementById('tool-modal');
+            
+            const toolElement = document.querySelector(`[data-tool="${toolName}"]`);
+            const toolText = toolElement.querySelector('span:last-child').textContent.trim();
+            
+            // Reset button color
+            menuButton.classList.remove('bg-indigo-500', 'bg-green-500', 'bg-amber-500', 'bg-gray-500', 'bg-blue-500', 'bg-pink-500', 'bg-yellow-500', 'bg-cyan-500', 'bg-red-500');
+            
+            if (toolName === 'break') {
+                iconDisplay.textContent = '🔨';
+                textDisplay.textContent = 'Break';
+                menuButton.classList.add('bg-indigo-500');
+            } else if (toolName === 'pig' || toolName === 'sheep' || toolName === 'cow' || toolName === 'chicken') {
+                iconDisplay.textContent = toolElement.querySelector('span:first-child').textContent;
+                textDisplay.textContent = toolText;
+                menuButton.classList.add('bg-pink-500');
+            } else {
+                // It's a block!
+                iconDisplay.innerHTML = toolElement.querySelector('svg').outerHTML;
+                textDisplay.textContent = toolText;
+                
+                // Set color based on block
+                if (['grass', 'leaf'].includes(toolName)) menuButton.classList.add('bg-green-500');
+                else if (['dirt', 'log'].includes(toolName)) menuButton.classList.add('bg-amber-500');
+                else if (toolName === 'stone') menuButton.classList.add('bg-gray-500');
+                else if (toolName === 'water') menuButton.classList.add('bg-blue-500');
+                else if (toolName === 'sand') menuButton.classList.add('bg-yellow-500');
+                else if (toolName === 'glass') menuButton.classList.add('bg-cyan-500');
+                else if (toolName === 'brick') menuButton.classList.add('bg-red-500');
+                else menuButton.classList.add('bg-indigo-500'); // Default
+            }
+            
+            modal.classList.add('hidden'); // Close modal on selection
+        }
+
+        // --- The Animation Loop ---
+        function animate(time) {
+            requestAnimationFrame(animate); 
+
+            controls.update(); 
+            
+            if (time - lastChunkCheckTime > CHECK_CHUNKS_INTERVAL) {
+                lastChunkCheckTime = time;
+                updateChunks();
+            }
+            
+            if (time - lastGenerationTime > GENERATE_CHUNK_INTERVAL && generationQueue.length > 0) {
+                lastGenerationTime = time; 
+                const task = generationQueue.shift(); 
+                
+                const chunk = chunks.get(`${task.cx},${task.cz}`);
+                if (chunk && chunk.isPlaceholder) {
+                    generateChunk(task.cx, task.cz);
+                }
+            }
+            
+            const posDisplay = document.getElementById('position-display');
+            posDisplay.textContent = 
+                `X: ${camera.position.x.toFixed(1)} | ` +
+                `Y: ${camera.position.y.toFixed(1)} | ` +
+                `Z: ${camera.position.z.toFixed(1)}`;
+            
+            updateAnimals(time);
+            updateInstancedMeshes();
+            renderer.render(scene, camera); 
+        }
+
+        function onWindowResize() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        window.onload = async function () {
+            await init(); // Wait for the async init function to complete
+            animate(0); // Then start the animation loop
         }
     </script>
 </body>

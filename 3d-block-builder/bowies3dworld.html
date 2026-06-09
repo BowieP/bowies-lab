@@ -15,11 +15,27 @@
         body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; }
         #container { width: 100vw; height: 100vh; touch-action: none; }
         
+        /* Prevent scroll when modal is open */
+        body.modal-open { overflow: hidden; }
+        html.modal-open { overflow: hidden; }
+        
         /*  Make the new modal scrollbar pretty (for browsers that support it)  */
         #tool-grid::-webkit-scrollbar { width: 8px; }
         #tool-grid::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
         #tool-grid::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
         #tool-grid::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        /* Better modal styling for mobile */
+        .modal-overlay {
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        .modal-content {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body class="bg-gray-900">
@@ -34,16 +50,16 @@
         </div>
 
         <!-- NEW! Full-Screen Tool Modal  -->
-        <div id="tool-modal" class="hidden fixed inset-0 bg-gray-900/70 z-40 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl p-6 relative">
+        <div id="tool-modal" class="hidden fixed inset-0 bg-gray-900/70 z-40 flex items-center justify-center p-2 modal-overlay">
+            <div class="bg-white w-full max-w-md sm:max-w-lg rounded-2xl shadow-2xl p-6 relative modal-content">
                 <!-- Close Button -->
-                <button id="close-modal-button" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl font-bold transition transform hover:scale-110">
+                <button id="close-modal-button" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl font-bold transition transform hover:scale-110 z-50" style="pointer-events: auto;">
                     &times;
                 </button>
                 <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Choose Your Tool</h2>
                 
                 <!-- Scrollable Grid for all the tools! -->
-                <div id="tool-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 overflow-y-auto max-h-[70vh] p-2">
+                <div id="tool-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 overflow-y-auto max-h-[60vh] p-2">
                     
                     <!-- --- TOOLS --- -->
                     <button data-tool="break" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-indigo-100 rounded-xl shadow-md transition transform hover:scale-105">
@@ -53,39 +69,39 @@
                     
                     <!-- --- BLOCKS (With SVG Icons!) --- -->
                     <button data-tool="grass" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-green-100 rounded-xl shadow-md transition transform hover:scale-105">
-                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#4CAF50"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#388E3C"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#558B2F"/></svg>
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#4CAF50"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#2E7D32"/></svg>
                         <span class="mt-2 font-semibold text-gray-700">Grass Block</span>
                     </button>
                     <button data-tool="dirt" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-amber-100 rounded-xl shadow-md transition transform hover:scale-105">
-                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#8D6E63"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#6D4C41"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#795548"/></svg>
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#8D6E63"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#6D4C41"/></svg>
                         <span class="mt-2 font-semibold text-gray-700">Dirt Block</span>
                     </button>
                     <button data-tool="stone" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-gray-200 rounded-xl shadow-md transition transform hover:scale-105">
-                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#757575"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#616161"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#9E9E9E"/></svg>
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#757575"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#616161"/></svg>
                         <span class="mt-2 font-semibold text-gray-700">Stone Block</span>
                     </button>
                     <button data-tool="log" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-amber-100 rounded-xl shadow-md transition transform hover:scale-105">
-                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#6D4C41"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#4E342E"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#5D4037"/></svg>
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#6D4C41"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#4E342E"/></svg>
                         <span class="mt-2 font-semibold text-gray-700">Log Block</span>
                     </button>
                     <button data-tool="leaf" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-green-100 rounded-xl shadow-md transition transform hover:scale-105">
-                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#388E3C"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#2E7D32"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#4CAF50"/></svg>
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#388E3C"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#2E7D32"/></svg>
                         <span class="mt-2 font-semibold text-gray-700">Leaf Block 🌳</span>
                     </button>
                     <button data-tool="water" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-blue-100 rounded-xl shadow-md transition transform hover:scale-105">
-                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#2196F3"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#03A9F4"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#1976D2"/></svg>
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#2196F3"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#1976D2"/></svg>
                         <span class="mt-2 font-semibold text-gray-700">Water Block 💧</span>
                     </button>
                     <button data-tool="sand" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-yellow-100 rounded-xl shadow-md transition transform hover:scale-105">
-                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#F4E1A4"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#D2B48C"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#E2C79A"/></svg>
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#F4E1A4"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#D2B48C"/></svg>
                         <span class="mt-2 font-semibold text-gray-700">Sand Block</span>
                     </button>
                     <button data-tool="glass" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-cyan-100 rounded-xl shadow-md transition transform hover:scale-105">
-                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#E0F7FA" fill-opacity="0.8"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#B2EBF2" fill-opacity="0.8"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#B2EBF2" fill-opacity="0.8"/></svg>
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#E0F7FA" fill-opacity="0.8"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#B3E5FC"/></svg>
                         <span class="mt-2 font-semibold text-gray-700">Glass Block</span>
                     </button>
                     <button data-tool="brick" class="tool-option flex flex-col items-center justify-center p-4 bg-gray-100 hover:bg-red-100 rounded-xl shadow-md transition transform hover:scale-105">
-                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#B71C1C"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#8E24AA"/><path d="M50 55 L95 30 L95 70 L50 95 Z" fill="#D32F2F"/></svg>
+                        <svg width="60" height="60" viewBox="0 0 100 100" class="drop-shadow-md"><path d="M50 5 L95 30 L95 70 L50 95 L5 70 L5 30 Z" fill="#B71C1C"/><path d="M5 30 L50 55 L50 95 L5 70 Z" fill="#7F0000"/></svg>
                         <span class="mt-2 font-semibold text-gray-700">Brick Block 🧱</span>
                     </button>
                     
@@ -112,17 +128,17 @@
         </div>
 
         <!-- NEW! Settings Modal -->
-        <div id="settings-modal" class="hidden fixed inset-0 bg-gray-900/70 z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 relative">
+        <div id="settings-modal" class="hidden fixed inset-0 bg-gray-900/70 z-50 flex items-center justify-center p-2 modal-overlay">
+            <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6 relative modal-content">
                 <!-- Close Button -->
-                <button id="close-settings-button" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl font-bold transition transform hover:scale-110">
+                <button id="close-settings-button" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl font-bold transition transform hover:scale-110 z-50" style="pointer-events: auto;">
                     &times;
                 </button>
                 <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Settings</h2>
                 <div class="flex flex-col space-y-4 text-center">
                     <p class="text-gray-600 text-sm">Your world is auto-saved every 5 seconds.</p>
-                    <button id="export-world-button" class="w-full p-4 bg-blue-500 hover:bg-blue-600 text-white rounded-xl shadow-lg font-semibold text-lg transition transform hover:scale-105">Export World (JSON File)</button>
-                    <button id="import-world-button" class="w-full p-4 bg-green-500 hover:bg-green-600 text-white rounded-xl shadow-lg font-semibold text-lg transition transform hover:scale-105">Import World (JSON File)</button>
+                    <button id="export-world-button" class="w-full p-4 bg-blue-500 hover:bg-blue-600 text-white rounded-xl shadow-lg font-semibold text-lg transition transform hover:scale-105">Export World</button>
+                    <button id="import-world-button" class="w-full p-4 bg-green-500 hover:bg-green-600 text-white rounded-xl shadow-lg font-semibold text-lg transition transform hover:scale-105">Import World</button>
                     <input type="file" id="import-world-file-input" class="hidden" accept=".json">
 
                     <!-- Hidden file input for loading -->
@@ -730,7 +746,7 @@
         // --- INTERACTION HANDLER (Now uses InstancedMesh!) ---
         function handleCreativeInteraction(event) {
             // Prevent interaction if clicking on UI elements
-            if (event.target.closest('#toolbox') || event.target.closest('#tool-modal')) return;
+            if (event.target.closest('#toolbox') || event.target.closest('#tool-modal') || event.target.closest('#settings-modal')) return;
 
             const isTouch = event.pointerType === 'touch' || event.type.startsWith('touch');
             // Map controls for PC: Left Click (0) = Break, Right Click (2) = Place
@@ -1000,445 +1016,186 @@
             camera.position.set(5, 25, 15); 
 
             // 3. Renderer
-            renderer = new THREE.WebGLRenderer({ antias: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(width, height);
             renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+            renderer.shadowMap.type = THREE.PCFShadowShadowMap;
             document.getElementById('container').appendChild(renderer.domElement);
-            
-            // 4. CREATE THE INSTANCED MESHES!
-            const instancedGeometry = new THREE.BoxGeometry(1, 1, 1);
-            for (const type in blockMaterials) {
-                const material = blockMaterials[type];
-                const mesh = new THREE.InstancedMesh(instancedGeometry, material, MAX_BLOCKS_PER_TYPE);
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-                mesh.frustumCulled = false;
-                // Set a large bounding sphere so raycasting works correctly throughout the infinite world
-                mesh.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1000);
-                instancedMeshes[type] = mesh;
-                scene.add(mesh);
-            }
+
+            // 4. Lighting
+            const ambientLight = new THREE.AmbientLight(0xFFFFFF, 0.8); scene.add(ambientLight);
+            directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.8); 
+            directionalLight.position.copy(SUN_POSITION);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.left = -50;
+            directionalLight.shadow.camera.right = 50;
+            directionalLight.shadow.camera.top = 50;
+            directionalLight.shadow.camera.bottom = -50;
+            scene.add(directionalLight);
 
             // 5. Controls
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true; 
-            controls.dampingFactor = 0.05; // Makes camera movement smoother
-            controls.rotateSpeed = 0.5;    // Slows down rotation for more control
-            controls.zoomSpeed = 1.2;      // A more standard zoom speed
-            controls.minDistance = 2;     // Prevent zooming into the "nothingness"
-            controls.maxDistance = 100;   // Keep the world in view
-            controls.target.set(0, 0, 0); 
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.target.set(5, 0, 5);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.1;
+            controls.autoRotate = false;
+            controls.minDistance = 5;
+            controls.maxDistance = 100;
             controls.update();
-            
-            // 6. Lights
-            const sunGeometry = new THREE.BoxGeometry(5, 5, 5); 
-            const sunCube = new THREE.Mesh(sunGeometry, sunMaterial);
-            sunCube.position.copy(SUN_POSITION);
-            sunCube.rotation.set(0.78, 0.78, 0.78); 
-            scene.add(sunCube);
-            
-            directionalLight = new THREE.DirectionalLight(0xffffff, 1.2); 
-            directionalLight.position.copy(SUN_POSITION); 
-            directionalLight.castShadow = true; 
-            
-            const cameraSize = 40; 
-            directionalLight.shadow.camera.left = -cameraSize;
-            directionalLight.shadow.camera.right = cameraSize;
-            directionalLight.shadow.camera.top = cameraSize;
-            directionalLight.shadow.camera.bottom = -cameraSize; 
-            directionalLight.shadow.camera.near = 0.1;
-            directionalLight.shadow.camera.far = 100;
-            directionalLight.shadow.mapSize.width = 2048; 
-            directionalLight.shadow.mapSize.height = 2048;
-            scene.add(directionalLight);
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); 
-            scene.add(ambientLight);
 
-            // 7. Build the World - Try loading from IndexedDB first, otherwise generate new
+            // 6. Initialize InstancedMeshes for all block types
+            const blockTypes = Object.keys(blockMaterials);
+            for (const type of blockTypes) {
+                const material = blockMaterials[type];
+                const mesh = new THREE.InstancedMesh(geometry, material, MAX_BLOCKS_PER_TYPE);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                scene.add(mesh);
+                instancedMeshes[type] = mesh;
+            }
+
+            // 7. Load world from IndexedDB or generate a new one
             loadWorldFromIndexedDB();
 
+            // 8. Animation loop
+            let lastChunkCheckTime = 0;
+            let lastGenerationTime = 0;
 
-            // 8. Add Interaction Listener
-            renderer.domElement.addEventListener('pointerdown', (e) => {
-                isMouseDown = true;
-                mouseDownPos.set(e.clientX, e.clientY);
-            }, false);
+            function animate(currentTime) {
+                requestAnimationFrame(animate);
+                controls.update();
+                updateAnimals(currentTime);
+                
+                // Chunk management
+                if (currentTime - lastChunkCheckTime > CHECK_CHUNKS_INTERVAL) {
+                    updateChunks();
+                    lastChunkCheckTime = currentTime;
+                }
+                
+                // Chunk generation
+                if (generationQueue.length > 0 && currentTime - lastGenerationTime > GENERATE_CHUNK_INTERVAL) {
+                    const task = generationQueue.shift();
+                    generateChunk(task.cx, task.cz);
+                    lastGenerationTime = currentTime;
+                }
+                
+                updateInstancedMeshes();
+                
+                // Update position display
+                const pos = camera.position;
+                document.getElementById('position-display').textContent = 
+                    `X: ${pos.x.toFixed(1)} | Y: ${pos.y.toFixed(1)} | Z: ${pos.z.toFixed(1)}`;
+                
+                renderer.render(scene, camera);
+            }
 
-            renderer.domElement.addEventListener('pointerup', (e) => {
-                if (!isMouseDown) return;
-                isMouseDown = false;
-                // Only interact if the mouse didn't move much (prevents interaction while rotating camera)
-                const moveDist = Math.hypot(e.clientX - mouseDownPos.x, e.clientY - mouseDownPos.y);
-                if (moveDist < 15) handleCreativeInteraction(e);
-            }, false);
-            
-            // 9. Add NEW Toolbox Listeners
-            const menuButton = document.getElementById('tool-menu-button');
-            const modal = document.getElementById('tool-modal');
-            const closeButton = document.getElementById('close-modal-button');
-            
-            menuButton.addEventListener('click', () => {
-                modal.classList.remove('hidden');
-                controls.enabled = false; // Disable controls when modal is open
-            });
-            closeButton.addEventListener('click', () => {
-                modal.classList.remove('hidden');
-                controls.enabled = true; // Re-enable controls when modal is closed
-            });
-            // Also ensure controls are enabled if the modal is closed by other means (e.g., tool selection)
-            modal.addEventListener('transitionend', () => { if (modal.classList.contains('hidden')) controls.enabled = true; });
-            
-            document.querySelectorAll('.tool-option').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const tool = e.currentTarget.getAttribute('data-tool');
-                    changeTool(tool);
-                });
+            animate(0);
+
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                const newWidth = window.innerWidth;
+                const newHeight = window.innerHeight;
+                camera.aspect = newWidth / newHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(newWidth, newHeight);
             });
 
-            // Add Settings Modal Listeners
+            // --- UI BUTTON HANDLERS ---
+            const toolMenuButton = document.getElementById('tool-menu-button');
+            const toolModal = document.getElementById('tool-modal');
+            const closeModalButton = document.getElementById('close-modal-button');
+            const toolOptions = document.querySelectorAll('.tool-option');
             const settingsButton = document.getElementById('settings-button');
             const settingsModal = document.getElementById('settings-modal');
             const closeSettingsButton = document.getElementById('close-settings-button');
-            const exportWorldButton = document.getElementById('export-world-button');
-            const importWorldButton = document.getElementById('import-world-button');
-            const importWorldFileInput = document.getElementById('import-world-file-input');
 
-            if (settingsButton && settingsModal) settingsButton.addEventListener('click', () => {
+            // Tool menu open/close
+            toolMenuButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toolModal.classList.remove('hidden');
+                document.body.classList.add('modal-open');
+            });
+
+            closeModalButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toolModal.classList.add('hidden');
+                document.body.classList.remove('modal-open');
+            });
+
+            toolModal.addEventListener('click', (e) => {
+                if (e.target === toolModal) {
+                    toolModal.classList.add('hidden');
+                    document.body.classList.remove('modal-open');
+                }
+            });
+
+            // Tool selection
+            toolOptions.forEach(option => {
+                option.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    currentTool = option.getAttribute('data-tool');
+                    const toolIcon = {
+                        'break': '🔨', 'grass': '🟩', 'dirt': '🟫', 'stone': '⬜',
+                        'log': '🟫', 'leaf': '🟢', 'water': '💧', 'sand': '🟨',
+                        'glass': '🔷', 'brick': '🧱', 'pig': '🐷', 'sheep': '🐑',
+                        'cow': '🐄', 'chicken': '🐔'
+                    };
+                    const toolName = {
+                        'break': 'Break', 'grass': 'Grass', 'dirt': 'Dirt', 'stone': 'Stone',
+                        'log': 'Log', 'leaf': 'Leaf', 'water': 'Water', 'sand': 'Sand',
+                        'glass': 'Glass', 'brick': 'Brick', 'pig': 'Pig', 'sheep': 'Sheep',
+                        'cow': 'Cow', 'chicken': 'Chicken'
+                    };
+                    document.getElementById('current-tool-icon').textContent = toolIcon[currentTool];
+                    document.getElementById('current-tool-display').textContent = toolName[currentTool];
+                    toolModal.classList.add('hidden');
+                    document.body.classList.remove('modal-open');
+                });
+            });
+
+            // Settings open/close
+            settingsButton.addEventListener('click', (e) => {
+                e.stopPropagation();
                 settingsModal.classList.remove('hidden');
-                controls.enabled = false; // Disable controls when settings modal is open
+                document.body.classList.add('modal-open');
             });
-            if (closeSettingsButton && settingsModal) closeSettingsButton.addEventListener('click', () => {
+
+            closeSettingsButton.addEventListener('click', (e) => {
+                e.stopPropagation();
                 settingsModal.classList.add('hidden');
-                controls.enabled = true; // Re-enable controls when settings modal is closed
+                document.body.classList.remove('modal-open');
             });
-            // Also ensure controls are enabled if the modal is closed by other means
-            settingsModal.addEventListener('transitionend', () => { if (settingsModal.classList.contains('hidden')) controls.enabled = true; });
-            if (exportWorldButton) exportWorldButton.addEventListener('click', exportWorldToFile);
-            if (importWorldButton && importWorldFileInput) importWorldButton.addEventListener('click', () => importWorldFileInput.click());
-            if (importWorldFileInput) importWorldFileInput.addEventListener('change', importWorldFromFile);
 
-            // 10. Handle resizing of the window
-            window.addEventListener('resize', onWindowResize, false);
-
-            // 11. Prevent context menu so Right Click works for placing!
-            window.addEventListener('contextmenu', (e) => e.preventDefault());
-        }
-
-        // --- TOOLBOX LOGIC (Updated for new modal) ---
-        function changeTool(toolName) {
-            currentTool = toolName;
-            const iconDisplay = document.getElementById('current-tool-icon');
-            const textDisplay = document.getElementById('current-tool-display');
-            const menuButton = document.getElementById('tool-menu-button');
-            const modal = document.getElementById('tool-modal');
-            
-            const toolElement = document.querySelector(`[data-tool="${toolName}"]`);
-            const toolText = toolElement.querySelector('span:last-child').textContent.trim();
-            
-            // Reset button color
-            menuButton.classList.remove('bg-indigo-500', 'bg-green-500', 'bg-amber-500', 'bg-gray-500', 'bg-blue-500', 'bg-pink-500', 'bg-yellow-500', 'bg-cyan-500', 'bg-red-500');
-            
-            if (toolName === 'break') {
-                iconDisplay.textContent = '🔨';
-                textDisplay.textContent = 'Break';
-                menuButton.classList.add('bg-indigo-500');
-            } else if (toolName === 'pig' || toolName === 'sheep' || toolName === 'cow' || toolName === 'chicken') {
-                iconDisplay.textContent = toolElement.querySelector('span:first-child').textContent;
-                textDisplay.textContent = toolText;
-                menuButton.classList.add('bg-pink-500');
-            } else {
-                // It's a block!
-                iconDisplay.innerHTML = toolElement.querySelector('svg').outerHTML;
-                textDisplay.textContent = toolText;
-                
-                // Set color based on block
-                if (['grass', 'leaf'].includes(toolName)) menuButton.classList.add('bg-green-500');
-                else if (['dirt', 'log'].includes(toolName)) menuButton.classList.add('bg-amber-500');
-                else if (toolName === 'stone') menuButton.classList.add('bg-gray-500');
-                else if (toolName === 'water') menuButton.classList.add('bg-blue-500');
-                else if (toolName === 'sand') menuButton.classList.add('bg-yellow-500');
-                else if (toolName === 'glass') menuButton.classList.add('bg-cyan-500');
-                else if (toolName === 'brick') menuButton.classList.add('bg-red-500');
-                else menuButton.classList.add('bg-indigo-500'); // Default
-            }
-            
-            modal.classList.add('hidden'); // Close modal on selection
-        }
-
-        // --- The Animation Loop ---
-        function animate(time) {
-            requestAnimationFrame(animate); 
-
-            controls.update(); 
-            
-            if (time - lastChunkCheckTime > CHECK_CHUNKS_INTERVAL) {
-                lastChunkCheckTime = time;
-                updateChunks();
-            }
-            
-            if (time - lastGenerationTime > GENERATE_CHUNK_INTERVAL && generationQueue.length > 0) {
-                lastGenerationTime = time; 
-                const task = generationQueue.shift(); 
-                
-                const chunk = chunks.get(`${task.cx},${task.cz}`);
-                if (chunk && chunk.isPlaceholder) {
-                    generateChunk(task.cx, task.cz);
+            settingsModal.addEventListener('click', (e) => {
+                if (e.target === settingsModal) {
+                    settingsModal.classList.add('hidden');
+                    document.body.classList.remove('modal-open');
                 }
-            }
-            
-            const posDisplay = document.getElementById('position-display');
-            posDisplay.textContent = 
-                `X: ${camera.position.x.toFixed(1)} | ` +
-                `Y: ${camera.position.y.toFixed(1)} | ` +
-                `Z: ${camera.position.z.toFixed(1)}`;
-            
-            updateAnimals(time);
-            updateInstancedMeshes();
-            renderer.render(scene, camera); 
-        }
-
-        function onWindowResize() {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
-        }
-
-        window.onload = async function () {
-            await init(); // Wait for the async init function to complete
-            animate(0); // Then start the animation loop
-        }
-    </script>
-</body>
-</html>
-                alert("Error: Could not load the world.");
-            };
-        }
-
-        // --- GAME INITIALIZATION (NOW ASYNC!) ---
-        async function init() {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            
-            noise = new SimplexNoise();
-            
-            // Wait for the database to be ready before doing anything else
-            try {
-                await initDB();
-            } catch (error) {
-                console.error("Database could not be initialized. Saving/Loading will not work.", error);
-                alert("Warning: Could not connect to the local database. Your world will not be saved.");
-            }
-            // 1. Scene
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x4DD0E1); // Teal Sky
-            scene.fog = new THREE.Fog(0x4DD0E1, 20, 40);
-
-            // 2. Camera
-            camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-            camera.position.set(5, 25, 15); 
-
-            // 3. Renderer
-            renderer = new THREE.WebGLRenderer({ antias: true });
-            renderer.setSize(width, height);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
-            document.getElementById('container').appendChild(renderer.domElement);
-            
-            // 4. CREATE THE INSTANCED MESHES!
-            const instancedGeometry = new THREE.BoxGeometry(1, 1, 1);
-            for (const type in blockMaterials) {
-                const material = blockMaterials[type];
-                const mesh = new THREE.InstancedMesh(instancedGeometry, material, MAX_BLOCKS_PER_TYPE);
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-                mesh.frustumCulled = false;
-                // Set a large bounding sphere so raycasting works correctly throughout the infinite world
-                mesh.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1000);
-                instancedMeshes[type] = mesh;
-                scene.add(mesh);
-            }
-
-            // 5. Controls
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true; 
-            controls.dampingFactor = 0.05; // Makes camera movement smoother
-            controls.rotateSpeed = 0.5;    // Slows down rotation for more control
-            controls.zoomSpeed = 1.2;      // A more standard zoom speed
-            controls.minDistance = 2;     // Prevent zooming into the "nothingness"
-            controls.maxDistance = 100;   // Keep the world in view
-            controls.target.set(0, 0, 0); 
-            controls.update();
-            
-            // 6. Lights
-            const sunGeometry = new THREE.BoxGeometry(5, 5, 5); 
-            const sunCube = new THREE.Mesh(sunGeometry, sunMaterial);
-            sunCube.position.copy(SUN_POSITION);
-            sunCube.rotation.set(0.78, 0.78, 0.78); 
-            scene.add(sunCube);
-            
-            directionalLight = new THREE.DirectionalLight(0xffffff, 1.2); 
-            directionalLight.position.copy(SUN_POSITION); 
-            directionalLight.castShadow = true; 
-            
-            const cameraSize = 40; 
-            directionalLight.shadow.camera.left = -cameraSize;
-            directionalLight.shadow.camera.right = cameraSize;
-            directionalLight.shadow.camera.top = cameraSize;
-            directionalLight.shadow.camera.bottom = -cameraSize; 
-            directionalLight.shadow.camera.near = 0.1;
-            directionalLight.shadow.camera.far = 100;
-            directionalLight.shadow.mapSize.width = 2048; 
-            directionalLight.shadow.mapSize.height = 2048;
-            scene.add(directionalLight);
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); 
-            scene.add(ambientLight);
-
-            // 7. Build the World - Try loading first, otherwise generate new
-            // We will call loadWorld directly, which now handles both cases.
-            // The 'loadWorld' function will call 'updateChunks' if no save is found.
-            loadWorld();
-
-
-            // 8. Add Interaction Listener
-            renderer.domElement.addEventListener('pointerdown', (e) => {
-                isMouseDown = true;
-                mouseDownPos.set(e.clientX, e.clientY);
-            }, false);
-
-            renderer.domElement.addEventListener('pointerup', (e) => {
-                if (!isMouseDown) return;
-                isMouseDown = false;
-                // Only interact if the mouse didn't move much (prevents interaction while rotating camera)
-                const moveDist = Math.hypot(e.clientX - mouseDownPos.x, e.clientY - mouseDownPos.y);
-                if (moveDist < 15) handleCreativeInteraction(e);
-            }, false);
-            
-            // 9. Add NEW Toolbox Listeners
-            const menuButton = document.getElementById('tool-menu-button');
-            const modal = document.getElementById('tool-modal');
-            const closeButton = document.getElementById('close-modal-button');
-            
-            menuButton.addEventListener('click', () => {
-                modal.classList.remove('hidden');
-            });
-            closeButton.addEventListener('click', () => {
-                modal.classList.add('hidden');
-            });
-            
-            document.querySelectorAll('.tool-option').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const tool = e.currentTarget.getAttribute('data-tool');
-                    changeTool(tool);
-                });
             });
 
-            // Add Settings Modal Listeners
-            const settingsButton = document.getElementById('settings-button');
-            const settingsModal = document.getElementById('settings-modal');
-            const closeSettingsButton = document.getElementById('close-settings-button');
-            const saveWorldButton = document.getElementById('save-world-button');
-            const loadWorldButton = document.getElementById('load-world-button');
+            // Export button
+            document.getElementById('export-world-button').addEventListener('click', (e) => {
+                e.stopPropagation();
+                exportWorldToFile();
+            });
 
-            if (settingsButton && settingsModal) settingsButton.addEventListener('click', () => settingsModal.classList.remove('hidden'));
-            if (closeSettingsButton && settingsModal) closeSettingsButton.addEventListener('click', () => settingsModal.classList.add('hidden')); // Corrected from previous state
-            if (saveWorldButton) saveWorldButton.addEventListener('click', saveWorld);
-            if (loadWorldButton) loadWorldButton.addEventListener('click', loadWorld);
+            // Import button
+            document.getElementById('import-world-button').addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.getElementById('import-world-file-input').click();
+            });
 
-            // 10. Handle resizing of the window
-            window.addEventListener('resize', onWindowResize, false);
+            document.getElementById('import-world-file-input').addEventListener('change', (e) => {
+                importWorldFromFile(e);
+            });
 
-            // 11. Prevent context menu so Right Click works for placing!
-            window.addEventListener('contextmenu', (e) => e.preventDefault());
+            // Block interaction (pointer down)
+            window.addEventListener('pointerdown', handleCreativeInteraction);
         }
 
-        // --- TOOLBOX LOGIC (Updated for new modal) ---
-        function changeTool(toolName) {
-            currentTool = toolName;
-            const iconDisplay = document.getElementById('current-tool-icon');
-            const textDisplay = document.getElementById('current-tool-display');
-            const menuButton = document.getElementById('tool-menu-button');
-            const modal = document.getElementById('tool-modal');
-            
-            const toolElement = document.querySelector(`[data-tool="${toolName}"]`);
-            const toolText = toolElement.querySelector('span:last-child').textContent.trim();
-            
-            // Reset button color
-            menuButton.classList.remove('bg-indigo-500', 'bg-green-500', 'bg-amber-500', 'bg-gray-500', 'bg-blue-500', 'bg-pink-500', 'bg-yellow-500', 'bg-cyan-500', 'bg-red-500');
-            
-            if (toolName === 'break') {
-                iconDisplay.textContent = '🔨';
-                textDisplay.textContent = 'Break';
-                menuButton.classList.add('bg-indigo-500');
-            } else if (toolName === 'pig' || toolName === 'sheep' || toolName === 'cow' || toolName === 'chicken') {
-                iconDisplay.textContent = toolElement.querySelector('span:first-child').textContent;
-                textDisplay.textContent = toolText;
-                menuButton.classList.add('bg-pink-500');
-            } else {
-                // It's a block!
-                iconDisplay.innerHTML = toolElement.querySelector('svg').outerHTML;
-                textDisplay.textContent = toolText;
-                
-                // Set color based on block
-                if (['grass', 'leaf'].includes(toolName)) menuButton.classList.add('bg-green-500');
-                else if (['dirt', 'log'].includes(toolName)) menuButton.classList.add('bg-amber-500');
-                else if (toolName === 'stone') menuButton.classList.add('bg-gray-500');
-                else if (toolName === 'water') menuButton.classList.add('bg-blue-500');
-                else if (toolName === 'sand') menuButton.classList.add('bg-yellow-500');
-                else if (toolName === 'glass') menuButton.classList.add('bg-cyan-500');
-                else if (toolName === 'brick') menuButton.classList.add('bg-red-500');
-                else menuButton.classList.add('bg-indigo-500'); // Default
-            }
-            
-            modal.classList.add('hidden'); // Close modal on selection
-        }
-
-        // --- The Animation Loop ---
-        function animate(time) {
-            requestAnimationFrame(animate); 
-
-            controls.update(); 
-            
-            if (time - lastChunkCheckTime > CHECK_CHUNKS_INTERVAL) {
-                lastChunkCheckTime = time;
-                updateChunks();
-            }
-            
-            if (time - lastGenerationTime > GENERATE_CHUNK_INTERVAL && generationQueue.length > 0) {
-                lastGenerationTime = time; 
-                const task = generationQueue.shift(); 
-                
-                const chunk = chunks.get(`${task.cx},${task.cz}`);
-                if (chunk && chunk.isPlaceholder) {
-                    generateChunk(task.cx, task.cz);
-                }
-            }
-            
-            const posDisplay = document.getElementById('position-display');
-            posDisplay.textContent = 
-                `X: ${camera.position.x.toFixed(1)} | ` +
-                `Y: ${camera.position.y.toFixed(1)} | ` +
-                `Z: ${camera.position.z.toFixed(1)}`;
-            
-            updateAnimals(time);
-            updateInstancedMeshes();
-            renderer.render(scene, camera); 
-        }
-
-        function onWindowResize() {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
-        }
-
-        window.onload = async function () {
-            await init(); // Wait for the async init function to complete
-            animate(0); // Then start the animation loop
-        }
+        init();
     </script>
 </body>
 </html>

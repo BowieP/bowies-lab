@@ -1080,10 +1080,14 @@
             
             menuButton.addEventListener('click', () => {
                 modal.classList.remove('hidden');
+                controls.enabled = false; // Disable controls when modal is open
             });
             closeButton.addEventListener('click', () => {
-                modal.classList.add('hidden');
+                modal.classList.remove('hidden');
+                controls.enabled = true; // Re-enable controls when modal is closed
             });
+            // Also ensure controls are enabled if the modal is closed by other means (e.g., tool selection)
+            modal.addEventListener('transitionend', () => { if (modal.classList.contains('hidden')) controls.enabled = true; });
             
             document.querySelectorAll('.tool-option').forEach(button => {
                 button.addEventListener('click', (e) => {
@@ -1100,8 +1104,16 @@
             const importWorldButton = document.getElementById('import-world-button');
             const importWorldFileInput = document.getElementById('import-world-file-input');
 
-            if (settingsButton && settingsModal) settingsButton.addEventListener('click', () => settingsModal.classList.remove('hidden'));
-            if (closeSettingsButton && settingsModal) closeSettingsButton.addEventListener('click', () => settingsModal.classList.add('hidden'));
+            if (settingsButton && settingsModal) settingsButton.addEventListener('click', () => {
+                settingsModal.classList.remove('hidden');
+                controls.enabled = false; // Disable controls when settings modal is open
+            });
+            if (closeSettingsButton && settingsModal) closeSettingsButton.addEventListener('click', () => {
+                settingsModal.classList.add('hidden');
+                controls.enabled = true; // Re-enable controls when settings modal is closed
+            });
+            // Also ensure controls are enabled if the modal is closed by other means
+            settingsModal.addEventListener('transitionend', () => { if (settingsModal.classList.contains('hidden')) controls.enabled = true; });
             if (exportWorldButton) exportWorldButton.addEventListener('click', exportWorldToFile);
             if (importWorldButton && importWorldFileInput) importWorldButton.addEventListener('click', () => importWorldFileInput.click());
             if (importWorldFileInput) importWorldFileInput.addEventListener('change', importWorldFromFile);

@@ -1,6 +1,6 @@
 # 🧪 Bowie's Lab
 
-Welcome to my digital playground! 
+Welcome to my digital playground and lab! 
 
 This is the home for all the code I create that doesn't quite need a full, standalone repository. Think of this as my sandbox—a collection of things I've built to learn, break, and explore.
 
@@ -12,4 +12,4 @@ In this lab, you’ll find a mix of experiments, mini-games, and utility scripts
 * **Scripts:** Helpful little tools that make my life easier and automate the boring stuff.
 * **Glitchy Magic:** Projects that might have a bug or two—but that’s just part of the charm of a true lab.
 ---
-*Built with curiosity by Bowie. 🎨*
+*Built by Bowie. 🎨*
